@@ -3,7 +3,7 @@
 Auftrag: data/vod_queue/*.json  {"channel": "lacy", "url": "<vod-url oder leer>", "n": 5, "gta_only": true}
 Leere url = neuestes VOD des Kanals (bevorzugt mit GTA im Titel).
 """
-import os, json, glob, time, logging, subprocess, statistics, secrets
+import os, json, glob, time, logging, subprocess, statistics, secrets, traceback
 from .common import DATA, CLIPS
 
 log = logging.getLogger("vod")
@@ -19,12 +19,16 @@ def request(channel, url="", n=5, gta_only=True):
 
 
 def list_vods(name, limit=15):
-    r = subprocess.run(["yt-dlp", "--flat-playlist", "-J", "--playlist-end", str(limit),
-                        f"https://www.twitch.tv/{name}/videos?filter=archives&sort=time"],
-                       capture_output=True, text=True, timeout=180)
-    if r.returncode != 0:
-        raise RuntimeError(r.stderr[-500:])
-    ents = json.loads(r.stdout).get("entries") or []
+    ents = []
+    for q in ("?filter=archives&sort=time", "?filter=all&sort=time", ""):
+        r = subprocess.run(["yt-dlp", "--flat-playlist", "-J", "--playlist-end", str(limit),
+                            f"https://www.twitch.tv/{name}/videos{q}"], capture_output=True, text=True, timeout=180)
+        if r.returncode == 0:
+            ents = json.loads(r.stdout).get("entries") or []
+            if ents:
+                break
+        else:
+            log.warning("yt-dlp Liste %s%s: %s", name, q, r.stderr[-300:])
     return [{"url": e.get("url") or f"https://www.twitch.tv/videos/{e['id']}", "title": e.get("title") or ""}
             for e in ents]
 
@@ -124,7 +128,7 @@ def loop(conf, put_job):
                 log.exception("VOD-Auftrag %s fehlgeschlagen", p)
                 try:
                     with open(p + ".error", "w") as f:
-                        f.write(str(e)[:2000])
+                        f.write(traceback.format_exc()[-3000:])
                     if os.path.exists(p + ".running"):
                         os.remove(p + ".running")
                 except Exception:
