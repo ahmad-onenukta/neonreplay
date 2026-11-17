@@ -61,7 +61,7 @@ def _esc(t):
     return t.replace("\\", "").replace("{", "(").replace("}", ")").replace("\n", " ")
 
 
-def build_ass(path, hook, words, dur, accent="#FF2E88", show_subs=True):
+def build_ass(path, hook, words, dur, accent="#FF2E88", show_subs=True, brand=False):
     """ASS mit Hook oben (ganzer Clip) + Wort-Untertiteln in 3er-Gruppen, aktives Wort in Cyan."""
     r, g, b = accent[1:3], accent[3:5], accent[5:7]
     acc = f"&H00{b}{g}{r}".upper()
@@ -74,12 +74,15 @@ WrapStyle: 0
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Hook,Noto Sans,78,&H00FFFFFF,&H00FFFFFF,{acc},&H00000000,1,0,0,0,100,100,0,0,3,6,0,8,60,60,230,1
+Style: Brand,Noto Sans,54,{acc},&H00FFFFFF,&H00FFE500,&H00000000,1,1,0,0,100,100,6,0,1,3,0,2,60,60,90,1
 Style: Sub,Noto Sans,70,&H00FFFFFF,&H00FFFFFF,&H00000000,&H64000000,1,0,0,0,100,100,0,0,1,6,2,2,60,60,420,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     ev = [f"Dialogue: 1,{_ts(0)},{_ts(dur)},Hook,,0,0,0,,{_esc(hook)}"]
+    if brand:  # nur bei Videos OHNE Kampagne (Kampagnen verbieten Logos/Wasserzeichen)
+        ev.append(f"Dialogue: 2,{_ts(0)},{_ts(dur)},Brand,,0,0,0,,NEONREPLAY")
     if show_subs:
         for i in range(0, len(words), 3):
             grp = words[i:i + 3]

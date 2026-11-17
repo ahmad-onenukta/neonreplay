@@ -98,7 +98,8 @@ def process(job, conf):
             ass = raw.replace("_raw.mp4", f"_{l}.ass")
             out = raw.replace("_raw.mp4", f"_{l}.mp4")
             # Wort-Untertitel nur, wenn Clip-Sprache = Zielsprache (sonst nur Hook)
-            media.build_ass(ass, v["hook"], words, dur, conf["render"]["accent_color"], show_subs=(l == lang))
+            media.build_ass(ass, v["hook"], words, dur, conf["render"]["accent_color"], show_subs=(l == lang),
+                            brand=not ch.get("campaign"))
             media.render_vertical(raw, ass, out, conf["render"]["width"], conf["render"]["height"])
             c.execute("INSERT INTO variants(clip_id,lang,hook,caption,video_path) VALUES(?,?,?,?,?)",
                       (clip_id, l, v["hook"], f"{v['caption']}\n\n{v.get('hashtags','')} {ch.get('hashtags','')}".strip(), out))
