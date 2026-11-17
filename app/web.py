@@ -187,9 +187,37 @@ def api_status(token: str = "", limit: int = 20):
 @app.get("/media/{name}")
 def media(name: str):
     path = os.path.join(CLIPS, os.path.basename(name))
+    if name.startswith("sheet_") and name.endswith(".jpg") and os.path.exists(path):
+        return FileResponse(path, media_type="image/jpeg")
     if not name.endswith(".mp4") or "_raw" in name or not os.path.exists(path):
         raise HTTPException(404)
     return FileResponse(path, media_type="video/mp4")
+
+
+@app.get("/api/job")
+def api_job(token: str = "", body: str = ""):
+    """Eigene Reels/Kontaktabzüge (JSON im Parameter body, siehe app/reels.py)."""
+    _check_token(token)
+    import json as _j
+    from . import vod
+    body = _j.loads(body)
+    if body.get("type") not in ("frames", "reel"):
+        raise HTTPException(400)
+    p = os.path.join(vod.QDIR, f"{int(time.time())}_{secrets.token_hex(3)}.json")
+    with open(p, "w") as f:
+        _j.dump(body, f)
+    return {"ok": True, "job": os.path.basename(p)}
+
+
+@app.get("/api/frames")
+def api_frames(token: str = "", url: str = "", name: str = "", every: int = 5):
+    _check_token(token)
+    import json as _j
+    from . import vod
+    p = os.path.join(vod.QDIR, f"{int(time.time())}_{secrets.token_hex(3)}.json")
+    with open(p, "w") as f:
+        _j.dump({"type": "frames", "url": url, "name": name, "every": every}, f)
+    return {"ok": True, "sheet": f"sheet_{name}.jpg"}
 
 
 def progress(a):

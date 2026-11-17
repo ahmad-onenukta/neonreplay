@@ -165,7 +165,11 @@ def loop(conf, put_job):
                 with open(p) as f:
                     req = json.load(f)
                 os.rename(p, p + ".running")
-                handle(req, conf, put_job)
+                if req.get("type") in ("frames", "reel"):
+                    from . import reels
+                    getattr(reels, req["type"])(req)
+                else:
+                    handle(req, conf, put_job)
                 os.rename(p + ".running", p + ".done")
             except Exception as e:
                 log.exception("VOD-Auftrag %s fehlgeschlagen", p)
