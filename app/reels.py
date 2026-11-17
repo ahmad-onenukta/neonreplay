@@ -10,8 +10,13 @@ from .common import CLIPS, cfg
 log = logging.getLogger("reels")
 
 
+def _yt(url):
+    # YouTube blockt Rechenzentrums-IPs teils; alternative Player-Clients versuchen
+    return ["--extractor-args", "youtube:player_client=tv_simply,mweb,web_safari"] if "youtu" in url else []
+
+
 def _dl(url, start, end, out):
-    r = subprocess.run(["yt-dlp", "-q", "--no-part", "-f", "bv*[height<=1080]+ba/b[height<=1080]/b",
+    r = subprocess.run(["yt-dlp", "-q", *_yt(url), "--no-part", "-f", "bv*[height<=1080]+ba/b[height<=1080]/b",
                         "--download-sections", f"*{start}-{end}", "--force-keyframes-at-cuts",
                         "--merge-output-format", "mp4", "-o", out, url], capture_output=True, text=True, timeout=900)
     if r.returncode != 0 or not os.path.exists(out):
@@ -25,8 +30,8 @@ def frames(req):
     name = req.get("name") or secrets.token_hex(3)
     src = os.path.join(CLIPS, f"src_{name}_raw.mp4")
     if not os.path.exists(src):
-        r = subprocess.run(["yt-dlp", "-q", "--no-part", "-f", "b[height<=480]/bv*[height<=480]+ba/w",
-                            "--merge-output-format", "mp4", "-o", src, req["url"]], capture_output=True, text=True, timeout=900)
+        r = subprocess.run(["yt-dlp", "-q", *_yt(req["url"]), "--no-part", "-f", "b[height<=480]/bv*[height<=480]+ba/w",
+                            "--download-sections", f"*0-{int(req.get('max_seconds', 1800))}", "--merge-output-format", "mp4", "-o", src, req["url"]], capture_output=True, text=True, timeout=900)
         if r.returncode != 0:
             raise RuntimeError((r.stderr or "")[-600:])
     out = os.path.join(CLIPS, f"sheet_{name}.jpg")

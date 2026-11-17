@@ -158,12 +158,15 @@ def handle(req, conf, put_job):
                  "chat": chat, "cleanup": [f]})
 
 
-def loop(conf, put_job):
+def loop(conf, put_job, only_frames=False):
+    """Zwei Threads: einer nur für Kontaktabzüge (lange Downloads), einer für Reels/VODs."""
     while True:
         for p in sorted(glob.glob(os.path.join(QDIR, "*.json"))):
             try:
                 with open(p) as f:
                     req = json.load(f)
+                if (req.get("type") == "frames") != only_frames:
+                    continue
                 os.rename(p, p + ".running")
                 if req.get("type") in ("frames", "reel"):
                     from . import reels

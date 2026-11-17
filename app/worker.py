@@ -123,6 +123,7 @@ def main():
         threading.Thread(target=renderer, args=(conf,), daemon=True).start()
     threading.Thread(target=poster.loop, daemon=True).start()
     threading.Thread(target=vod.loop, args=(conf, jobs.put), daemon=True).start()
+    threading.Thread(target=vod.loop, args=(conf, jobs.put, True), daemon=True).start()
     running = set()
     while True:
         # Kanäle können im Dashboard ein-/ausgeschaltet werden (ohne Neustart einschalten)
