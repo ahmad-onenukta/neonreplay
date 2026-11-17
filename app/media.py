@@ -5,10 +5,11 @@ log = logging.getLogger("media")
 _model = None
 
 
-def run(cmd):
-    r = subprocess.run(cmd, capture_output=True, text=True)
+def run(cmd, binary=False):
+    r = subprocess.run(cmd, capture_output=True, text=not binary)
     if r.returncode != 0:
-        raise RuntimeError(r.stderr[-800:])
+        err = r.stderr if not binary else r.stderr.decode(errors="ignore")
+        raise RuntimeError(err[-800:])
     return r
 
 
@@ -37,7 +38,12 @@ def transcribe(path, model="small"):
         return "", "en", []
     if _model is None:
         _model = WhisperModel(model, device="auto", compute_type="int8")
-    segs, info = _model.transcribe(path, word_timestamps=True, vad_filter=True)
+    # Audio selbst per ffmpeg dekodieren (umgeht PyAV-Versionskonflikte)
+    import numpy as np
+    pcm = run(["ffmpeg", "-loglevel", "error", "-i", path, "-ac", "1", "-ar", "16000", "-f", "s16le", "pipe:1"],
+              binary=True).stdout
+    audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+    segs, info = _model.transcribe(audio, word_timestamps=True, vad_filter=True)
     words, text = [], []
     for s in segs:
         text.append(s.text.strip())
