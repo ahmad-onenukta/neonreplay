@@ -4,7 +4,7 @@ set -euo pipefail
 REPO="${REPO:-https://github.com/ahmad-onenukta/neonreplay.git}"
 
 apt-get update -y
-apt-get install -y ca-certificates curl git ufw
+apt-get install -y ca-certificates curl git ufw cron
 if ! command -v docker >/dev/null; then curl -fsSL https://get.docker.com | sh; fi
 
 # Firewall: SSH + Dashboard
@@ -32,9 +32,30 @@ docker compose up -d --build < /dev/null
 cat > /usr/local/bin/neonreplay-update <<'UPD'
 #!/bin/bash
 cd /opt/neonreplay || exit 0
-OLD=$(git rev-parse HEAD); git pull -q --ff-only || exit 0
+export HOME=/root
+git config --global --add safe.directory /opt/neonreplay
+OLD=$(git rev-parse HEAD); git fetch -q origin main && git reset -q --hard origin/main || exit 0
 [ "$OLD" != "$(git rev-parse HEAD)" ] && docker compose up -d --build >> /var/log/neonreplay-update.log 2>&1
 UPD
 chmod +x /usr/local/bin/neonreplay-update
-echo "*/10 * * * * root /usr/local/bin/neonreplay-update" > /etc/cron.d/neonreplay-update
+# systemd-Timer (zuverlässig, ohne cron) – alle 5 Min
+cat > /etc/systemd/system/neonreplay-update.service <<'SVC'
+[Unit]
+Description=NeonReplay Auto-Update
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/neonreplay-update
+SVC
+cat > /etc/systemd/system/neonreplay-update.timer <<'TMR'
+[Unit]
+Description=NeonReplay Auto-Update alle 5 Minuten
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+[Install]
+WantedBy=timers.target
+TMR
+systemctl daemon-reload
+systemctl enable --now neonreplay-update.timer
+echo "$(date) install ok" >> /var/log/neonreplay-update.log
 docker compose ps < /dev/null
