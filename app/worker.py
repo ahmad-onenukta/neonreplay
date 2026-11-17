@@ -3,7 +3,7 @@ import os, time, queue, threading, logging, secrets
 from . import db, media, hooks, poster
 from .common import cfg, CLIPS
 from .capture import Capture
-from .triggers import TwitchChat, AudioWatch
+from .triggers import make_chat, AudioWatch
 
 log = logging.getLogger("worker")
 jobs = queue.Queue()
@@ -19,9 +19,9 @@ class Channel:
     def start(self):
         self.cap.start()
         t = self.conf["trigger"]
-        if self.ch["platform"] == "twitch":
-            login = self.ch["url"].rstrip("/").split("/")[-1]
-            TwitchChat(login, t, self.spike).start()
+        chat = make_chat(self.ch, t, self.spike)
+        if chat:
+            chat.start()
         AudioWatch(self.cap, t, self.spike).start()
 
     def spike(self, kind, score, chat):

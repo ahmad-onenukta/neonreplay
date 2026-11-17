@@ -1,27 +1,74 @@
-"""Highlight-Erkennung: Twitch-Chat-Spitzen + Audio-Peaks."""
-import socket, threading, time, collections, re, subprocess, os, glob, logging
+"""Highlight-Erkennung: Chat-Spitzen (Twitch / Kick / YouTube Live) + Audio-Peaks."""
+import socket, threading, time, collections, re, subprocess, os, glob, json, logging
 
 log = logging.getLogger("trigger")
 HYPE = re.compile(r"\b(KEKW|LUL|OMEGALUL|PogChamp|Pog|W+|LMAO+|NO WAY|WTF|OMG|💀|😂)\b", re.I)
 
 
-class TwitchChat(threading.Thread):
-    """Anonymer IRC-Listener, berechnet Nachrichten/Sek + Hype-Anteil."""
+class RateSpike:
+    """Gemeinsame Spike-Logik: Nachrichten/Sek im Fenster vs. gleitender Durchschnitt + Hype-Anteil."""
 
-    def __init__(self, channel, tcfg, on_spike):
-        super().__init__(daemon=True)
-        self.channel, self.t, self.on_spike = channel.lower(), tcfg, on_spike
+    def __init__(self, tcfg, on_spike, kind="chat"):
+        self.t, self.on_spike, self.kind = tcfg, on_spike, kind
         self.win = collections.deque()
         self.base = 1.0
         self.recent = collections.deque(maxlen=80)
+        self.lock = threading.Lock()
+
+    def add(self, msg, now=None):
+        now = now or time.time()
+        with self.lock:
+            self.win.append((now, bool(HYPE.search(msg or ""))))
+            self.recent.append(msg or "")
+
+    def evaluate(self, now=None):
+        now = now or time.time()
+        with self.lock:
+            w = self.t["window_seconds"]
+            while self.win and self.win[0][0] < now - w:
+                self.win.popleft()
+            rate = len(self.win) / w
+            hype = sum(h for _, h in self.win) / max(1, len(self.win))
+            fire = rate > self.t["spike_factor"] * self.base and rate >= self.t["min_msgs_per_sec"]
+            score = rate / max(self.base, 0.1) * (1 + hype)
+            recent = list(self.recent)[-30:]
+            self.base = 0.995 * self.base + 0.005 * max(rate, 0.1)
+        if fire:
+            self.on_spike(self.kind, score, recent)
+
+
+class _ChatThread(threading.Thread):
+    """Basis: reconnect-Schleife + Ticker, damit evaluate() auch bei Stille läuft."""
+
+    def __init__(self, name, tcfg, on_spike):
+        super().__init__(daemon=True)
+        self.name_ = name
+        self.rs = RateSpike(tcfg, on_spike)
+        threading.Thread(target=self._tick, daemon=True).start()
+
+    def _tick(self):
+        while True:
+            time.sleep(1)
+            self.rs.evaluate()
 
     def run(self):
         while True:
             try:
                 self._loop()
             except Exception as e:
-                log.warning("chat %s: %s – reconnect", self.channel, e)
-                time.sleep(10)
+                log.warning("chat %s: %s – reconnect in 15 s", self.name_, e)
+            time.sleep(15)
+
+    def _loop(self):
+        raise NotImplementedError
+
+
+class TwitchChat(_ChatThread):
+    """Anonymer Twitch-IRC-Listener."""
+
+    def __init__(self, channel, tcfg, on_spike):
+        super().__init__(f"twitch:{channel}", tcfg, on_spike)
+        self.channel = channel.lower()
 
     def _loop(self):
         s = socket.create_connection(("irc.chat.twitch.tv", 6667), timeout=300)
@@ -33,27 +80,86 @@ class TwitchChat(threading.Thread):
             if not data:
                 raise ConnectionError("closed")
             buf += data
-            lines, buf = buf.split("\r\n")[:-1], buf.split("\r\n")[-1]
-            now = time.time()
+            parts = buf.split("\r\n")
+            lines, buf = parts[:-1], parts[-1]
             for ln in lines:
                 if ln.startswith("PING"):
                     s.send(b"PONG :tmi.twitch.tv\r\n")
                 elif "PRIVMSG" in ln:
-                    msg = ln.split(" :", 1)[-1] if " :" in ln else ""
-                    self.win.append((now, bool(HYPE.search(msg))))
-                    self.recent.append(msg)
-            self._evaluate(now)
+                    self.rs.add(ln.split(" :", 1)[-1] if " :" in ln else "")
 
-    def _evaluate(self, now):
-        w = self.t["window_seconds"]
-        while self.win and self.win[0][0] < now - w:
-            self.win.popleft()
-        rate = len(self.win) / w
-        hype = sum(h for _, h in self.win) / max(1, len(self.win))
-        if rate > self.t["spike_factor"] * self.base and rate >= self.t["min_msgs_per_sec"]:
-            score = rate / max(self.base, 0.1) * (1 + hype)
-            self.on_spike("chat", score, list(self.recent)[-30:])
-        self.base = 0.995 * self.base + 0.005 * max(rate, 0.1)
+
+KICK_WS = "wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false"
+KICK_EVENT = "App\\Events\\ChatMessageEvent"
+
+
+def kick_chatroom_id(slug):
+    """chatroom.id über die Kick-API (Cloudflare kann blocken -> dann `chatroom_id` in config.yaml setzen)."""
+    import requests
+    r = requests.get(f"https://kick.com/api/v2/channels/{slug}", timeout=20, headers={
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36",
+        "Accept": "application/json"})
+    r.raise_for_status()
+    return int(r.json()["chatroom"]["id"])
+
+
+class KickChat(_ChatThread):
+    """Kick-Chat über den öffentlichen Pusher-Websocket (chatrooms.<id>.v2)."""
+
+    def __init__(self, slug, tcfg, on_spike, chatroom_id=None):
+        super().__init__(f"kick:{slug}", tcfg, on_spike)
+        self.slug, self.chatroom_id = slug, chatroom_id
+
+    def _loop(self):
+        import websocket  # websocket-client
+        if not self.chatroom_id:
+            self.chatroom_id = kick_chatroom_id(self.slug)
+        ws = websocket.create_connection(KICK_WS, timeout=120)
+        try:
+            while True:
+                raw = ws.recv()
+                if not raw:
+                    raise ConnectionError("closed")
+                msg = json.loads(raw)
+                ev = msg.get("event")
+                if ev == "pusher:connection_established":
+                    ws.send(json.dumps({"event": "pusher:subscribe",
+                                        "data": {"auth": "", "channel": f"chatrooms.{self.chatroom_id}.v2"}}))
+                elif ev == "pusher:ping":
+                    ws.send(json.dumps({"event": "pusher:pong", "data": {}}))
+                elif ev == KICK_EVENT:
+                    data = msg.get("data")
+                    data = json.loads(data) if isinstance(data, str) else (data or {})
+                    self.rs.add(str(data.get("content", "")))
+        finally:
+            ws.close()
+
+
+class YouTubeChat(_ChatThread):
+    """YouTube-Live-Chat über chat-downloader (ohne API-Key, blockiert solange der Stream live ist)."""
+
+    def __init__(self, url, tcfg, on_spike):
+        super().__init__(f"youtube:{url}", tcfg, on_spike)
+        self.url = url
+
+    def _loop(self):
+        from chat_downloader import ChatDownloader
+        chat = ChatDownloader().get_chat(self.url, message_groups=["messages"])
+        for m in chat:
+            self.rs.add(str(m.get("message", "")))
+        raise ConnectionError("chat beendet (offline?)")
+
+
+def make_chat(ch, tcfg, on_spike):
+    """Passenden Chat-Listener für einen Kanal aus config.yaml bauen (oder None)."""
+    p, url = ch.get("platform"), ch.get("url", "").rstrip("/")
+    if p == "twitch":
+        return TwitchChat(url.split("/")[-1], tcfg, on_spike)
+    if p == "kick":
+        return KickChat(url.split("/")[-1], tcfg, on_spike, ch.get("chatroom_id"))
+    if p == "youtube":
+        return YouTubeChat(ch["url"], tcfg, on_spike)
+    return None
 
 
 def segment_loudness(path):
