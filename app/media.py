@@ -57,7 +57,12 @@ def _ts(t):
     return f"{h}:{m:02d}:{s:05.2f}"
 
 
+_EMOJI = __import__("re").compile("[\U0001F000-\U0001FAFF☀-➿️‍]+")
+
+
 def _esc(t):
+    # libass kann keine Farb-Emojis -> im Video entfernen (Caption behält sie)
+    t = _EMOJI.sub("", t).strip()
     return t.replace("\\", "").replace("{", "(").replace("}", ")").replace("\n", " ")
 
 
