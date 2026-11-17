@@ -23,7 +23,8 @@ Write each variant natively in its language."""
 
 
 def generate(channel, transcript, chat, langs):
-    key = setting("ANTHROPIC_API_KEY")
+    # unsichtbare/kopierte Sonderzeichen (z. B. Zero-Width) entfernen
+    key = "".join(ch for ch in (setting("ANTHROPIC_API_KEY") or "") if 32 < ord(ch) < 127)
     if not key:
         return _fallback(channel, langs)
     lang_spec = ", ".join(f'"{l}": {{...{LANG_NAMES.get(l, l)}...}}' for l in langs)

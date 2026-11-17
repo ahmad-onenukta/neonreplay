@@ -34,7 +34,7 @@ def list_vods(name, limit=15):
 
 
 def pick_vod(name, gta_only):
-    vods = list_vods(name)
+    vods = list_vods(name, 60)
     if gta_only:
         g = [v for v in vods if "gta" in v["title"].lower() or "rp" in v["title"].lower().split()]
         if g:
