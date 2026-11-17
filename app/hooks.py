@@ -30,7 +30,7 @@ def generate(channel, transcript, chat, langs):
     lang_spec = ", ".join(f'"{l}": {{...{LANG_NAMES.get(l, l)}...}}' for l in langs)
     body = {"model": MODEL, "max_tokens": 900,
             "messages": [{"role": "user", "content": PROMPT.format(
-                channel=channel, chat=" | ".join(chat[-20:])[:1500] or "-",
+                channel=channel, chat=" | ".join(chat[:1] + chat[-20:] if chat and chat[0].startswith("[stream title") else chat[-20:])[:1500] or "-",
                 transcript=transcript[:2500] or "-", langs=lang_spec)}]}
     r = None
     try:

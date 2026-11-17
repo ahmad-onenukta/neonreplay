@@ -1,7 +1,7 @@
 """VOD-Modus: alte Streams (Twitch-VODs) per Chat-Replay-Spikes clippen.
 
 Auftrag: data/vod_queue/*.json  {"channel": "lacy", "url": "<vod-url oder leer>", "n": 5, "gta_only": true}
-Leere url = neuestes VOD des Kanals (bevorzugt mit GTA im Titel).
+Leere url = neuestes GTA-VOD des Kanals (nur GTA!).
 """
 import os, json, glob, time, logging, subprocess, statistics, secrets, traceback
 from .common import DATA, CLIPS
@@ -36,9 +36,8 @@ def list_vods(name, limit=15):
 def pick_vod(name, gta_only):
     vods = list_vods(name, 60)
     if gta_only:
-        g = [v for v in vods if "gta" in v["title"].lower() or "rp" in v["title"].lower().split()]
-        if g:
-            return g[0]
+        g = [v for v in vods if "gta" in v["title"].lower() or "grand theft" in v["title"].lower()]
+        return g[0] if g else None  # nur GTA - sonst nichts
     return vods[0] if vods else None
 
 
@@ -135,7 +134,7 @@ def handle(req, conf, put_job):
     if not url:
         v = pick_vod(ch["name"], req.get("gta_only", True))
         if not v:
-            raise RuntimeError("kein VOD gefunden")
+            raise RuntimeError("kein GTA-VOD in den letzten 60 VODs gefunden")
         url, title = v["url"], v["title"]
     log.info("VOD %s: %s %s – Chat wird geladen", ch["name"], url, title)
     msgs = chat_times(url)
@@ -154,7 +153,7 @@ def handle(req, conf, put_job):
         except Exception as ex:
             log.warning("VOD-Schnitt %s fehlgeschlagen: %s", pt, ex)
             continue
-        chat = [m for tt, m in msgs if s <= tt <= e][:200]
+        chat = ([f"[stream title: {title}]"] if title else []) + [m for tt, m in msgs if s <= tt <= e][:200]
         put_job({"channel": ch, "segments": [f], "trigger": trig, "score": round(score, 2),
                  "chat": chat, "cleanup": [f]})
 

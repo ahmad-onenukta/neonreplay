@@ -78,7 +78,15 @@ def process(job, conf):
         langs = ch.get("langs") or conf["languages"]
         h = hooks.generate(ch.get("display", ch["name"]), text, job["chat"], langs)
         spoiler = h.get("spoiler") or any(k in text.lower() for k in conf["spoiler_keywords"])
-        status = "spoiler" if spoiler else ("lowq" if h.get("quality", 6) < 5 else "done")
+        game = (h.get("game") or "").lower()
+        if h.get("_error"):
+            status = "nohook"  # ohne echten Hook nicht rendern
+        elif spoiler:
+            status = "spoiler"
+        elif "gta" not in game and "grand theft" not in game:
+            status = "offtopic"  # nur GTA-Inhalte
+        else:
+            status = "lowq" if h.get("quality", 6) < 5 else "done"
         c.execute("UPDATE clips SET transcript=?, status=?, score=score*?, error=? WHERE id=?",
                   (text, status, h.get("quality", 6) / 6, h.get("_error") or (f"game: {h.get('game')}" if h.get("game") else None), clip_id))
         c.commit()

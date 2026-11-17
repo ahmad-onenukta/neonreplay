@@ -94,10 +94,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 
 def render_vertical(src, ass, out, w=1080, h=1920):
-    """16:9 mittig über unscharfem, gezoomtem Hintergrund + eingebrannte ASS-Ebene."""
+    """Nur Spielszene: mittiges Quadrat (Facecams sitzen meist in den Ecken) groß über unscharfem
+    Spiel-Hintergrund + eingebrannte ASS-Ebene."""
     ass_esc = ass.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
-    vf = (f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},boxblur=25:2,eq=brightness=-0.08[bg];"
-          f"[0:v]scale={w}:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2-80,subtitles='{ass_esc}'[v]")
+    vf = (f"[0:v]crop=ih:ih,split[a][b];"
+          f"[a]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},boxblur=25:2,eq=brightness=-0.15[bg];"
+          f"[b]scale={w}:{w}[fg];[bg][fg]overlay=0:(H-h)/2-60,subtitles='{ass_esc}'[v]")
     run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-filter_complex", vf, "-map", "[v]", "-map", "0:a?",
          "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-r", "30", "-c:a", "aac", "-b:a", "160k",
          "-movflags", "+faststart", out])
