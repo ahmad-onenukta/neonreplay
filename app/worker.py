@@ -79,8 +79,8 @@ def process(job, conf):
         h = hooks.generate(ch.get("display", ch["name"]), text, job["chat"], langs)
         spoiler = h.get("spoiler") or any(k in text.lower() for k in conf["spoiler_keywords"])
         status = "spoiler" if spoiler else ("lowq" if h.get("quality", 6) < 5 else "done")
-        c.execute("UPDATE clips SET transcript=?, status=?, score=score*? WHERE id=?",
-                  (text, status, h.get("quality", 6) / 6, clip_id))
+        c.execute("UPDATE clips SET transcript=?, status=?, score=score*?, error=? WHERE id=?",
+                  (text, status, h.get("quality", 6) / 6, h.get("_error") or (f"game: {h.get('game')}" if h.get("game") else None), clip_id))
         c.commit()
         if status != "done":
             log.info("clip %s verworfen: %s", clip_id, status)
