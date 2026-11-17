@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS payouts(
 
 DEFAULT_ACCOUNTS = [
     ("tiktok", "@neonreplaygta", "en"), ("tiktok", "@neonreplay.de", "de"), ("tiktok", "@neonreplay.urdu", "ur"),
-    ("instagram", "@neonreplaygta", "en"), ("instagram", "@neonreplay.de", "de"), ("instagram", "@neonreplay.urdu", "ur"),
+    ("instagram", "@neonreplay.clips", "en"), ("instagram", "@neonreplay.de", "de"), ("instagram", "@neonreplay.urdu", "ur"),
     ("youtube", "@NeonReplayGTA", "en"), ("youtube", "@NeonReplayDE", "de"), ("youtube", "@NeonReplayUrdu", "ur"),
 ]
 
@@ -51,6 +51,7 @@ def init():
                       [(*a, time.time()) for a in DEFAULT_ACCOUNTS])
     # Handle-Korrekturen (YouTube-Alias war vergeben)
     c.execute("UPDATE accounts SET handle='@NeonReplayGTA' WHERE handle='@NeonReplayClips'")
-    c.execute("UPDATE accounts SET handle='@neonreplaygta' WHERE handle='@neonreplay.clips'")
+    c.execute("UPDATE accounts SET handle='@neonreplaygta' WHERE handle='@neonreplay.clips' AND platform='tiktok'")
+    c.execute("UPDATE accounts SET handle='@neonreplay.clips' WHERE handle='@neonreplaygta' AND platform='instagram'")
     c.commit()
     return c
