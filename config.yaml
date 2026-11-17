@@ -19,8 +19,20 @@ channels:                           # enabled: true erst NACH Kampagnen-Beitritt
   - name: jasontheween
     platform: twitch
     url: https://twitch.tv/jasontheween
-    campaign: "Content Rewards – Jason Pool $9K"
-    cpm_usd: 1.0                    # Pool-Kampagne: echten Satz nach Beitritt eintragen
+    display: JasonTheWeen
+    hashtags: "#JasonTheWeen"       # Pflicht laut Kampagne
+    langs: [en]
+    campaign: "Content Rewards – Jason Pool $9K (bis 30.11., 700K Views)"
+    cpm_usd: 1.0                    # Pool-Kampagne: Anteil nach Views
+    enabled: false
+  - name: clix
+    platform: twitch
+    url: https://twitch.tv/clix
+    display: Clix
+    hashtags: "#Clix"               # Pflicht laut reachclipping.com/Clix
+    langs: [en]                     # >=50 % englischsprachiges Publikum
+    campaign: "Content Rewards – Clix Pool $5K (Nov, 500K Views)"
+    cpm_usd: 1.0
     enabled: false
   # Kick-Beispiel: url: https://kick.com/<slug>, platform: kick, optional chatroom_id: 123456 (falls kick.com-API blockt)
   # YouTube-Beispiel: url: https://www.youtube.com/@kanal/live, platform: youtube
