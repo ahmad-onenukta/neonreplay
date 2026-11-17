@@ -45,11 +45,51 @@ def pick_vod(name, gta_only):
 def chat_times(url):
     from chat_downloader import ChatDownloader
     out = []
-    for m in ChatDownloader().get_chat(url, message_groups=["messages"]):
-        t = m.get("time_in_seconds")
-        if t is not None and t >= 0:
-            out.append((float(t), m.get("message") or ""))
+    try:
+        for m in ChatDownloader().get_chat(url, message_groups=["messages"], max_attempts=3,
+                                           interruptible_retry=False, retry_timeout=5):
+            t = m.get("time_in_seconds")
+            if t is not None and t >= 0:
+                out.append((float(t), m.get("message") or ""))
+    except Exception as e:
+        log.warning("Chat-Replay nicht verfuegbar (%s) - nutze Audio", str(e)[:200])
+        return []
     return out
+
+
+def audio_peaks(url, n, max_hours=5, bin_s=5, min_gap=150):
+    """Fallback ohne Chat: lauteste Momente (Schreien/Lachen/Action) im VOD-Audio."""
+    import numpy as np
+    sr = 8000
+    cmd = ["yt-dlp", "-q", "-f", "Audio_Only/audio_only/bestaudio/worst", "--download-sections", f"*0-{max_hours*3600}",
+           "-o", "-", url]
+    dl = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    ff = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-i", "pipe:0", "-ac", "1", "-ar", str(sr), "-f", "s16le", "pipe:1"],
+                          stdin=dl.stdout, stdout=subprocess.PIPE)
+    dl.stdout.close()
+    rms, chunk = [], sr * bin_s * 2
+    while True:
+        b = ff.stdout.read(chunk)
+        if not b:
+            break
+        a = np.frombuffer(b[:len(b) // 2 * 2], dtype=np.int16).astype(np.float32)
+        rms.append(float(np.sqrt(np.mean(a * a))) if a.size else 0.0)
+    ff.wait()
+    if len(rms) < 20:
+        raise RuntimeError("Audio-Download fehlgeschlagen")
+    r = np.convolve(np.array(rms), np.ones(3) / 3, mode="same")
+    base = max(float(np.median(r)), 1.0)
+    order = np.argsort(-r)
+    peaks = []
+    for i in order:
+        if r[i] < base * 1.8:
+            break
+        t = int(i) * bin_s
+        if all(abs(t - p[0]) > min_gap for p in peaks):
+            peaks.append((t, round(float(r[i] / base), 2)))
+        if len(peaks) >= n:
+            break
+    return sorted(peaks)
 
 
 def find_peaks(msgs, n, bin_s=5, win=4, min_gap=150):
@@ -100,8 +140,12 @@ def handle(req, conf, put_job):
     log.info("VOD %s: %s %s – Chat wird geladen", ch["name"], url, title)
     msgs = chat_times(url)
     t = conf["trigger"]
-    peaks = find_peaks(msgs, int(req.get("n", 5)))
-    log.info("VOD %s: %d Nachrichten, %d Peaks", ch["name"], len(msgs), len(peaks))
+    n = int(req.get("n", 5))
+    peaks = find_peaks(msgs, n)
+    trig = "vod-chat"
+    if len(peaks) < max(1, n // 2):
+        peaks, trig = audio_peaks(url, n), "vod-audio"
+    log.info("VOD %s: %d Nachrichten, %d Peaks (%s)", ch["name"], len(msgs), len(peaks), trig)
     for pt, score in peaks:
         s, e = pt - t["pre_seconds"] + 10, pt + t["post_seconds"] + 10
         f = os.path.join(CLIPS, f"vod_{ch['name']}_{int(pt)}_{secrets.token_hex(3)}_src_raw.mp4")
@@ -111,7 +155,7 @@ def handle(req, conf, put_job):
             log.warning("VOD-Schnitt %s fehlgeschlagen: %s", pt, ex)
             continue
         chat = [m for tt, m in msgs if s <= tt <= e][:200]
-        put_job({"channel": ch, "segments": [f], "trigger": "vod-chat", "score": round(score, 2),
+        put_job({"channel": ch, "segments": [f], "trigger": trig, "score": round(score, 2),
                  "chat": chat, "cleanup": [f]})
 
 
