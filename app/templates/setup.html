@@ -1,0 +1,13 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NeonReplay – Einrichtung</title>
+<style>body{margin:0;background:#0b0b0f;color:#ececf1;font:15px system-ui;display:grid;place-items:center;min-height:100vh}
+.box{background:#15151c;border:1px solid #26262f;border-radius:14px;padding:28px;width:340px}
+h1{margin:0 0 6px;font-size:22px}h1 b{color:#ff2e88}h1 i{color:#00e5ff;font-style:normal}
+p{color:#8a8a99;font-size:13px}label{display:block;margin:14px 0 4px;font-size:13px;color:#8a8a99}
+input{width:100%;box-sizing:border-box;background:#0e0e14;border:1px solid #26262f;color:#ececf1;border-radius:8px;padding:10px}
+button{margin-top:18px;width:100%;background:#ff2e88;color:#fff;border:0;border-radius:8px;padding:11px;font-weight:700;cursor:pointer}</style></head>
+<body><form class="box" method="post" action="/setup">
+<h1><b>NEON</b><i>REPLAY</i></h1><p>Erster Start: Lege deinen Dashboard-Login fest. Danach geht es zu den Einstellungen.</p>
+<label>Benutzername</label><input name="user" value="noman" required>
+<label>Passwort (min. 10 Zeichen)</label><input name="password" type="password" minlength="10" required autocomplete="new-password">
+<button>Speichern</button></form></body></html>

@@ -1,0 +1,33 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NeonReplay – Einstellungen</title>
+<style>body{margin:0;background:#0b0b0f;color:#ececf1;font:14px system-ui}
+main{max-width:760px;margin:auto;padding:24px}h1{font-size:20px}h1 b{color:#ff2e88}h1 i{color:#00e5ff;font-style:normal}
+h2{font-size:14px;color:#00e5ff;text-transform:uppercase;letter-spacing:1px;margin-top:26px}
+.card{background:#15151c;border:1px solid #26262f;border-radius:12px;padding:16px}
+label{display:block;margin:12px 0 4px;color:#8a8a99;font-size:12px}
+input,select{width:100%;box-sizing:border-box;background:#0e0e14;border:1px solid #26262f;color:#ececf1;border-radius:8px;padding:9px}
+.ok{color:#3ddc84}.miss{color:#ff8a3d}.row{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #26262f}
+.row input{width:auto}.mut{color:#8a8a99;font-size:12px}a{color:#00e5ff}
+button{margin-top:18px;background:#ff2e88;color:#fff;border:0;border-radius:8px;padding:11px 18px;font-weight:700;cursor:pointer}</style></head>
+<body><main><h1><b>NEON</b><i>REPLAY</i> · Einstellungen</h1><a href="/">← Dashboard</a>
+{% if request.query_params.get('ok') %}<p class="ok">✓ Gespeichert. Kanäle starten innerhalb von 30 Sekunden.</p>{% endif %}
+<form method="post" action="/settings">
+<h2>API-Schlüssel</h2><div class="card">
+{% for k, has in secrets.items() %}<label>{{k}} {% if has %}<span class="ok">✓ hinterlegt</span>{% else %}<span class="miss">fehlt</span>{% endif %}</label>
+<input name="{{k}}" type="password" placeholder="{{ 'leer lassen = unverändert' if has else 'einfügen' }}" autocomplete="off">{% endfor %}
+</div>
+<h2>Metricool & Posting</h2><div class="card">
+<label>METRICOOL_USER_ID</label><input name="METRICOOL_USER_ID" value="{{plain.METRICOOL_USER_ID}}">
+<label>Brand-ID Englisch (BLOG_ID_EN)</label><input name="BLOG_ID_EN" value="{{plain.BLOG_ID_EN}}">
+<label>Brand-ID Deutsch (BLOG_ID_DE)</label><input name="BLOG_ID_DE" value="{{plain.BLOG_ID_DE}}">
+<label>Brand-ID Urdu (BLOG_ID_UR)</label><input name="BLOG_ID_UR" value="{{plain.BLOG_ID_UR}}">
+<label>Öffentliche Server-URL</label><input name="PUBLIC_BASE_URL" value="{{plain.PUBLIC_BASE_URL}}" placeholder="http://IP:8080">
+<label>Posting-Modus</label><select name="POSTING_MODE">
+<option value="queue" {{'selected' if (plain.POSTING_MODE or default_mode)=='queue'}}>queue – erst im Dashboard freigeben</option>
+<option value="auto" {{'selected' if (plain.POSTING_MODE or default_mode)=='auto'}}>auto – sofort posten</option></select>
+</div>
+<h2>Überwachte Streams</h2><div class="card">
+{% for c in channels %}<div class="row"><input type="checkbox" name="channels" value="{{c.name}}" {{'checked' if c.active}}>
+<div><b>{{c.name}}</b> <span class="mut">{{c.platform}} · {{c.campaign}}</span></div></div>{% endfor %}
+<p class="mut">Ausschalten wirkt nach einem Neustart des Workers.</p></div>
+<button>Speichern</button></form></main></body></html>

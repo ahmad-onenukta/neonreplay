@@ -5,7 +5,8 @@ from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from . import db
-from .common import CLIPS, cfg, ROOT
+from .common import CLIPS, cfg, ROOT, settings, save_settings, setting
+import hashlib
 
 app = FastAPI(title="NeonReplay")
 security = HTTPBasic()
@@ -13,12 +14,83 @@ tpl = Jinja2Templates(directory=os.path.join(ROOT, "app", "templates"))
 FEE = 0.9  # ~10 % Plattformgebühr
 
 
-def auth(cred: HTTPBasicCredentials = Depends(security)):
-    ok_u = secrets.compare_digest(cred.username, os.environ.get("DASHBOARD_USER", "noman"))
-    ok_p = secrets.compare_digest(cred.password, os.environ.get("DASHBOARD_PASSWORD", "bitte-aendern"))
+def _hash(pw, salt):
+    return hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 200_000).hex()
+
+
+class NeedSetup(Exception):
+    pass
+
+
+def auth(cred: HTTPBasicCredentials = Depends(HTTPBasic(auto_error=False))):
+    s = settings()
+    if not s.get("pw_hash") and not os.environ.get("DASHBOARD_PASSWORD"):
+        raise NeedSetup()
+    if cred is None:
+        raise HTTPException(401, headers={"WWW-Authenticate": "Basic"})
+    ok_u = secrets.compare_digest(cred.username, s.get("user") or os.environ.get("DASHBOARD_USER", "noman"))
+    if s.get("pw_hash"):
+        ok_p = secrets.compare_digest(_hash(cred.password, s["pw_salt"]), s["pw_hash"])
+    else:
+        ok_p = secrets.compare_digest(cred.password, os.environ.get("DASHBOARD_PASSWORD", ""))
     if not (ok_u and ok_p):
         raise HTTPException(401, headers={"WWW-Authenticate": "Basic"})
     return cred.username
+
+
+@app.exception_handler(NeedSetup)
+def _need_setup(request, exc):
+    return RedirectResponse("/setup", 303)
+
+
+SECRET_KEYS = ["ANTHROPIC_API_KEY", "METRICOOL_TOKEN"]
+PLAIN_KEYS = ["METRICOOL_USER_ID", "BLOG_ID_EN", "BLOG_ID_DE", "BLOG_ID_UR", "PUBLIC_BASE_URL", "POSTING_MODE"]
+
+
+@app.get("/setup")
+def setup_page(request: Request):
+    if settings().get("pw_hash"):
+        return RedirectResponse("/", 303)
+    return tpl.TemplateResponse(request, "setup.html", {})
+
+
+@app.post("/setup")
+def setup_save(user: str = Form(...), password: str = Form(...)):
+    if settings().get("pw_hash"):
+        raise HTTPException(403)
+    if len(password) < 10:
+        raise HTTPException(400, "Passwort mindestens 10 Zeichen")
+    salt = secrets.token_hex(8)
+    save_settings({"user": user.strip(), "pw_salt": salt, "pw_hash": _hash(password, salt)})
+    return RedirectResponse("/settings", 303)
+
+
+@app.get("/settings")
+def settings_page(request: Request, user=Depends(auth)):
+    s = settings()
+    conf = cfg()
+    on = s.get("ENABLED_CHANNELS")
+    chans = [dict(c, active=(c["name"] in on) if on is not None else bool(c.get("enabled"))) for c in conf["channels"]]
+    return tpl.TemplateResponse(request, "settings.html", {
+        "secrets": {k: bool(setting(k)) for k in SECRET_KEYS},
+        "plain": {k: setting(k) for k in PLAIN_KEYS}, "channels": chans,
+        "default_mode": conf["posting"]["mode"]})
+
+
+@app.post("/settings")
+async def settings_save(request: Request, user=Depends(auth)):
+    form = await request.form()
+    upd = {}
+    for k in SECRET_KEYS:
+        v = (form.get(k) or "").strip()
+        if v:
+            upd[k] = v
+    for k in PLAIN_KEYS:
+        if k in form:
+            upd[k] = (form.get(k) or "").strip()
+    upd["ENABLED_CHANNELS"] = form.getlist("channels")
+    save_settings(upd)
+    return RedirectResponse("/settings?ok=1", 303)
 
 
 @app.on_event("startup")
@@ -70,7 +142,7 @@ def home(request: Request, status: str = "", user=Depends(auth)):
     conf = cfg()
     return tpl.TemplateResponse(request, "index.html", {
         "rows": rows, "kpi": kpi, "by_lang": by_lang, "by_channel": by_channel, "top": top,
-        "accounts": accounts, "payouts": payouts, "channels": conf["channels"], "mode": conf["posting"]["mode"],
+        "accounts": accounts, "payouts": payouts, "channels": conf["channels"], "mode": setting("POSTING_MODE") or conf["posting"]["mode"],
         "status": status, "fmt": lambda ts: datetime.datetime.fromtimestamp(ts).strftime("%d.%m. %H:%M") if ts else "–"})
 
 
