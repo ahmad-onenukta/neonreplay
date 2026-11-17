@@ -73,7 +73,7 @@ def settings_page(request: Request, user=Depends(auth)):
     chans = [dict(c, active=(c["name"] in on) if on is not None else bool(c.get("enabled"))) for c in conf["channels"]]
     return tpl.TemplateResponse(request, "settings.html", {
         "secrets": {k: bool(setting(k)) for k in SECRET_KEYS},
-        "plain": {k: setting(k) for k in PLAIN_KEYS}, "channels": chans,
+        "plain": {k: setting(k) for k in PLAIN_KEYS}, "channels": chans, "api_token": s.get("API_TOKEN", ""),
         "default_mode": conf["posting"]["mode"]})
 
 
@@ -96,6 +96,60 @@ async def settings_save(request: Request, user=Depends(auth)):
 @app.on_event("startup")
 def _init():
     db.init()
+    if not settings().get("API_TOKEN"):
+        save_settings({"API_TOKEN": secrets.token_urlsafe(24)})
+
+
+# ---------- Posting-API für den Claude-Posting-Agenten (Metricool über MCP) ----------
+def _check_token(token):
+    if not token or not secrets.compare_digest(token, settings().get("API_TOKEN", "")):
+        raise HTTPException(403)
+
+
+@app.get("/api/queue")
+def api_queue(token: str = "", limit: int = 3):
+    """Freigegebene, noch nicht gepostete Clips (pro Sprache max. `limit`), inkl. Rate-Limit-Info."""
+    _check_token(token)
+    c = db.conn()
+    conf = cfg()
+    pconf = conf["posting"]
+    auto = (setting("POSTING_MODE") or pconf["mode"]) == "auto"
+    states = ("approved", "ready") if auto else ("approved",)
+    base = setting("PUBLIC_BASE_URL").rstrip("/")
+    now = time.time()
+    chans = {ch["name"]: ch for ch in conf["channels"]}
+    out = []
+    for lang in conf["languages"]:
+        blog = setting(f"BLOG_ID_{lang.upper()}")
+        if not blog:
+            continue
+        posted_today = c.execute("SELECT COUNT(*) FROM variants WHERE lang=? AND status IN ('posted','posting') AND posted_at>?",
+                                 (lang, now - 86400)).fetchone()[0]
+        last = c.execute("SELECT MAX(posted_at) FROM variants WHERE lang=? AND status IN ('posted','posting')", (lang,)).fetchone()[0] or 0
+        free = max(0, pconf["max_posts_per_account_per_day"] - posted_today)
+        rows = c.execute(f"SELECT v.*, c.channel FROM variants v JOIN clips c ON c.id=v.clip_id WHERE v.lang=? AND v.status IN "
+                         f"({','.join('?'*len(states))}) ORDER BY v.status='approved' DESC, v.id DESC LIMIT ?",
+                         (lang, *states, min(limit, free))).fetchall()
+        for i, r in enumerate(rows):
+            ch = chans.get(r["channel"], {})
+            out.append({"id": r["id"], "lang": lang, "blogId": blog, "hook": r["hook"], "caption": r["caption"],
+                        "text": f"{r['hook']}\n\n{r['caption']}", "media_url": f"{base}/media/{os.path.basename(r['video_path'])}",
+                        "streamer": ch.get("display", r["channel"]), "networks": pconf["brands"].get(lang, {}).get("networks", []),
+                        "earliest_minutes_from_now": max(0, int((last + pconf["min_minutes_between_posts"] * 60 * (i + 1) - now) / 60))})
+    return {"count": len(out), "items": out}
+
+
+@app.get("/api/mark")
+def api_mark(token: str = "", id: int = 0, status: str = "posted", ref: str = "", url: str = "", error: str = ""):
+    _check_token(token)
+    if status not in ("posted", "error", "approved"):
+        raise HTTPException(400)
+    c = db.conn()
+    c.execute("UPDATE variants SET status=?, posted_at=CASE WHEN ?='posted' THEN ? ELSE posted_at END, "
+              "post_ref=COALESCE(NULLIF(?,''),post_ref), post_url=COALESCE(NULLIF(?,''),post_url), error=NULLIF(?,'') WHERE id=?",
+              (status, status, time.time(), ref, url, error, id))
+    c.commit()
+    return {"ok": True, "id": id, "status": status}
 
 
 @app.get("/media/{name}")

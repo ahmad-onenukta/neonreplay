@@ -1,0 +1,4 @@
+# HTTPS automatisch über Let's Encrypt (sslip.io löst auf die Server-IP auf)
+2-31-151-242.sslip.io {
+	reverse_proxy web:8080
+}

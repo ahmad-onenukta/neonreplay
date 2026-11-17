@@ -26,6 +26,8 @@ button{margin-top:18px;background:#ff2e88;color:#fff;border:0;border-radius:8px;
 <option value="queue" {{'selected' if (plain.POSTING_MODE or default_mode)=='queue'}}>queue – erst im Dashboard freigeben</option>
 <option value="auto" {{'selected' if (plain.POSTING_MODE or default_mode)=='auto'}}>auto – sofort posten</option></select>
 </div>
+<h2>Claude-Posting-Agent</h2><div class="card"><p class="mut">Token für die stündliche Posting-Aufgabe (nur für Claude, nicht teilen):</p>
+<code id="apitoken" style="word-break:break-all">{{api_token}}</code></div>
 <h2>Überwachte Streams</h2><div class="card">
 {% for c in channels %}<div class="row"><input type="checkbox" name="channels" value="{{c.name}}" {{'checked' if c.active}}>
 <div><b>{{c.name}}</b> <span class="mut">{{c.platform}} · {{c.campaign}}</span></div></div>{% endfor %}
