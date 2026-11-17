@@ -152,6 +152,38 @@ def api_mark(token: str = "", id: int = 0, status: str = "posted", ref: str = ""
     return {"ok": True, "id": id, "status": status}
 
 
+@app.get("/api/vod")
+def api_vod(token: str = "", channel: str = "", url: str = "", n: int = 5, gta_only: int = 1):
+    """VOD-Auftrag anlegen: alte Streams per Chat-Replay clippen."""
+    _check_token(token)
+    from . import vod
+    if channel not in {c["name"] for c in cfg()["channels"]}:
+        raise HTTPException(400, "unbekannter Kanal")
+    p = vod.request(channel, url, max(1, min(n, 15)), bool(gta_only))
+    return {"ok": True, "job": os.path.basename(p)}
+
+
+@app.get("/api/status")
+def api_status(token: str = "", limit: int = 20):
+    """Letzte Clips + Varianten + VOD-Aufträge (für den Claude-Agenten)."""
+    _check_token(token)
+    import glob
+    from . import vod
+    c = db.conn()
+    clips = [dict(r) for r in c.execute("SELECT id,created,channel,trigger,score,status,error,substr(transcript,1,200) t "
+                                        "FROM clips ORDER BY id DESC LIMIT ?", (limit,)).fetchall()]
+    base = setting("PUBLIC_BASE_URL").rstrip("/")
+    vars_ = [dict(r) | {"media_url": f"{base}/media/{os.path.basename(r['video_path'])}"} for r in
+             c.execute("SELECT id,clip_id,lang,hook,caption,status,video_path FROM variants ORDER BY id DESC LIMIT ?", (limit,)).fetchall()]
+    jobs = []
+    for p in sorted(glob.glob(os.path.join(vod.QDIR, "*")))[-10:]:
+        e = ""
+        if p.endswith(".error"):
+            e = open(p).read()[:300]
+        jobs.append({"file": os.path.basename(p), "error": e})
+    return {"clips": clips, "variants": vars_, "vod_jobs": jobs}
+
+
 @app.get("/media/{name}")
 def media(name: str):
     path = os.path.join(CLIPS, os.path.basename(name))

@@ -8,3 +8,4 @@ pyyaml>=6.0
 requests>=2.31
 websocket-client>=1.7
 chat-downloader>=0.2.8
+yt-dlp>=2025.1.1

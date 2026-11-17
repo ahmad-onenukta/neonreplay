@@ -1,6 +1,6 @@
 """Orchestrator: pro Kanal Capture + Trigger, Job-Queue für Schnitt/Render, Poster-Thread."""
 import os, time, queue, threading, logging, secrets
-from . import db, media, hooks, poster
+from . import db, media, hooks, poster, vod
 from .common import cfg, CLIPS, settings
 from .capture import Capture
 from .triggers import make_chat, AudioWatch
@@ -66,6 +66,11 @@ def process(job, conf):
     try:
         # Segmente sofort kopieren, bevor der Ringpuffer sie überschreibt
         media.concat(job["segments"], raw)
+        for f in job.get("cleanup", []):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
         dur = media.duration(raw)
         text, lang, words = ("", "en", [])
         if conf["transcribe"]["engine"] != "none":
@@ -108,6 +113,7 @@ def main():
     for _ in range(int(os.environ.get("RENDER_WORKERS", "2"))):
         threading.Thread(target=renderer, args=(conf,), daemon=True).start()
     threading.Thread(target=poster.loop, daemon=True).start()
+    threading.Thread(target=vod.loop, args=(conf, jobs.put), daemon=True).start()
     running = set()
     while True:
         # Kanäle können im Dashboard ein-/ausgeschaltet werden (ohne Neustart einschalten)
