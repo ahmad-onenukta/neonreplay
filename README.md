@@ -4,7 +4,7 @@ Live-Streams → Ringpuffer → Highlight-Trigger (Chat + Audio) → 9:16-Clip m
 
 ## Installation (Hetzner, Ubuntu 24.04)
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ahmad-onenukta/neonreplay/main/install.sh | REPO=https://github.com/ahmad-onenukta/neonreplay.git bash
+curl -fsSL https://raw.githubusercontent.com/ahmad-onenukta/neonreplay/main/install.sh -o /root/i.sh && bash /root/i.sh < /dev/null
 ```
 
 ## Konfiguration

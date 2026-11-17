@@ -26,7 +26,7 @@ if [ ! -f .env ]; then
   sed -i "s#http://SERVER_IP:8080#http://$IP:8080#; s#^DASHBOARD_PASSWORD=.*#DASHBOARD_PASSWORD=#" .env
   echo "Dashboard: http://$IP:8080  (beim ersten Aufruf Login festlegen)"
 fi
-docker compose up -d --build
+docker compose up -d --build < /dev/null
 
 # Auto-Update: alle 10 Min neue Version von GitHub holen und nur bei Änderungen neu bauen
 cat > /usr/local/bin/neonreplay-update <<'UPD'
@@ -37,4 +37,4 @@ OLD=$(git rev-parse HEAD); git pull -q --ff-only || exit 0
 UPD
 chmod +x /usr/local/bin/neonreplay-update
 echo "*/10 * * * * root /usr/local/bin/neonreplay-update" > /etc/cron.d/neonreplay-update
-docker compose ps
+docker compose ps < /dev/null
