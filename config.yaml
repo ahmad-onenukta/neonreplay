@@ -1,12 +1,26 @@
 # NeonReplay – Konfiguration
 # Kanäle: nur Streamer aus Kampagnen mit Clip-Erlaubnis (Whop/Vyro) eintragen!
-channels:
-  - name: beispielstreamer          # Twitch-Login-Name
-    platform: twitch                # twitch | kick | youtube
-    url: https://twitch.tv/beispielstreamer
-    campaign: "Whop – Beispielkampagne"
-    cpm_usd: 1.0                    # Auszahlung pro 1.000 Views
+channels:                           # enabled: true erst NACH Kampagnen-Beitritt + Regeln gelesen
+  - name: lacy
+    platform: twitch
+    url: https://twitch.tv/lacy
+    campaign: "Content Rewards – LACY 30 Day ($30K Pool)"
+    cpm_usd: 1.0                    # Pool-Kampagne: echten Satz nach Beitritt eintragen
     enabled: false
+  - name: marlon
+    platform: twitch
+    url: https://twitch.tv/marlon
+    campaign: "Content Rewards – Marlon $5K"
+    cpm_usd: 2.5
+    enabled: false
+  - name: jasontheween
+    platform: twitch
+    url: https://twitch.tv/jasontheween
+    campaign: "Content Rewards – Jason Pool $9K"
+    cpm_usd: 1.0                    # Pool-Kampagne: echten Satz nach Beitritt eintragen
+    enabled: false
+  # Kick-Beispiel: url: https://kick.com/<slug>, platform: kick, optional chatroom_id: 123456 (falls kick.com-API blockt)
+  # YouTube-Beispiel: url: https://www.youtube.com/@kanal/live, platform: youtube
 
 buffer:
   segment_seconds: 10
