@@ -17,7 +17,8 @@ NETWORK_KEYS = {
 
 
 def main():
-    token, user = os.environ.get("METRICOOL_TOKEN"), os.environ.get("METRICOOL_USER_ID")
+    from .common import setting
+    token, user = setting("METRICOOL_TOKEN"), setting("METRICOOL_USER_ID")
     if not token or not user:
         sys.exit("METRICOOL_TOKEN und METRICOOL_USER_ID in .env setzen.")
     r = requests.get("https://app.metricool.com/api/admin/simpleProfiles", params={"userId": user},

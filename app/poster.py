@@ -2,22 +2,22 @@
 import os, time, logging, datetime
 import requests
 from . import db
-from .common import cfg
+from .common import cfg, setting
 
 log = logging.getLogger("poster")
 API = "https://app.metricool.com/api"
 
 
 def _params(blog_id):
-    return {"userId": os.environ.get("METRICOOL_USER_ID", ""), "blogId": blog_id}
+    return {"userId": setting("METRICOOL_USER_ID"), "blogId": blog_id}
 
 
 def _headers():
-    return {"X-Mc-Auth": os.environ.get("METRICOOL_TOKEN", ""), "Content-Type": "application/json"}
+    return {"X-Mc-Auth": setting("METRICOOL_TOKEN"), "Content-Type": "application/json"}
 
 
 def schedule(variant, brand):
-    base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+    base = setting("PUBLIC_BASE_URL").rstrip("/")
     media_url = f"{base}/media/{os.path.basename(variant['video_path'])}"
     p = _params(brand["blog_id"])
     norm = requests.get(f"{API}/actions/normalize/image/url", params={**p, "url": media_url},
@@ -47,11 +47,12 @@ def loop():
     c = db.conn()
     while True:
         conf = cfg()["posting"]
-        auto = conf["mode"] == "auto"
+        auto = (setting("POSTING_MODE") or conf["mode"]) == "auto"
         states = ("approved", "ready") if auto else ("approved",)
         now = time.time()
         for lang, brand in conf["brands"].items():
-            if not brand.get("blog_id") or not os.environ.get("METRICOOL_TOKEN"):
+            brand = dict(brand, blog_id=brand.get("blog_id") or setting(f"BLOG_ID_{lang.upper()}"))
+            if not brand.get("blog_id") or not setting("METRICOOL_TOKEN"):
                 continue
             last = c.execute("SELECT MAX(posted_at) m FROM variants WHERE lang=? AND status='posted'", (lang,)).fetchone()["m"] or 0
             today = c.execute("SELECT COUNT(*) n FROM variants WHERE lang=? AND status='posted' AND posted_at>?",

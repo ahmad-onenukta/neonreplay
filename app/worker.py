@@ -1,7 +1,7 @@
 """Orchestrator: pro Kanal Capture + Trigger, Job-Queue für Schnitt/Render, Poster-Thread."""
 import os, time, queue, threading, logging, secrets
 from . import db, media, hooks, poster
-from .common import cfg, CLIPS
+from .common import cfg, CLIPS, settings
 from .capture import Capture
 from .triggers import make_chat, AudioWatch
 
@@ -105,15 +105,20 @@ def renderer(conf):
 def main():
     db.init()
     conf = cfg()
-    for ch in conf["channels"]:
-        if ch.get("enabled"):
-            Channel(ch, conf).start()
-            log.info("Kanal aktiv: %s", ch["name"])
     for _ in range(int(os.environ.get("RENDER_WORKERS", "2"))):
         threading.Thread(target=renderer, args=(conf,), daemon=True).start()
     threading.Thread(target=poster.loop, daemon=True).start()
+    running = set()
     while True:
-        time.sleep(3600)
+        # Kanäle können im Dashboard ein-/ausgeschaltet werden (ohne Neustart einschalten)
+        on = settings().get("ENABLED_CHANNELS")
+        for ch in conf["channels"]:
+            active = (ch["name"] in on) if on is not None else ch.get("enabled")
+            if active and ch["name"] not in running:
+                Channel(ch, conf).start()
+                running.add(ch["name"])
+                log.info("Kanal aktiv: %s", ch["name"])
+        time.sleep(30)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Hook + Caption + Hashtags je Sprache über die Claude API."""
 import os, json, logging, re
 import requests
+from .common import setting
 
 log = logging.getLogger("hooks")
 MODEL = os.environ.get("CLAUDE_MODEL", "claude-haiku-5-5")
@@ -21,7 +22,7 @@ Write each variant natively in its language."""
 
 
 def generate(channel, transcript, chat, langs):
-    key = os.environ.get("ANTHROPIC_API_KEY")
+    key = setting("ANTHROPIC_API_KEY")
     if not key:
         return _fallback(channel, langs)
     lang_spec = ", ".join(f'"{l}": {{...{LANG_NAMES.get(l, l)}...}}' for l in langs)
