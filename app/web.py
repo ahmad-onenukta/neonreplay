@@ -235,6 +235,23 @@ def payout(date: str = Form(...), source: str = Form(...), amount_eur: float = F
     return RedirectResponse("/#payouts", 303)
 
 
+def _version():
+    try:
+        g = os.path.join(ROOT, ".git")
+        head = open(os.path.join(g, "HEAD")).read().strip()
+        if head.startswith("ref:"):
+            ref = head[5:]
+            p = os.path.join(g, ref)
+            if os.path.exists(p):
+                return open(p).read().strip()[:7]
+            for ln in open(os.path.join(g, "packed-refs")):
+                if ln.strip().endswith(ref):
+                    return ln[:7]
+        return head[:7]
+    except Exception:
+        return "?"
+
+
 @app.get("/health")
 def health():
-    return {"ok": True}
+    return {"ok": True, "version": _version()}
