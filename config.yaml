@@ -4,8 +4,11 @@ channels:                           # enabled: true erst NACH Kampagnen-Beitritt
   - name: lacy
     platform: twitch
     url: https://twitch.tv/lacy
-    campaign: "Content Rewards – LACY 30 Day ($30K Pool)"
-    cpm_usd: 1.0                    # Pool-Kampagne: echten Satz nach Beitritt eintragen
+    display: Lacy                   # Name in Caption (Kampagnen-Pflicht)
+    hashtags: "#Lacy"               # Pflicht-Hashtag laut reachclipping.com/Lacy
+    langs: [en]                     # Pflicht: >=50 % englischsprachiges Publikum
+    campaign: "Content Rewards – LACY 30 Day ($25K Pool)"
+    cpm_usd: 1.0                    # Pool-Kampagne: Anteil nach Views
     enabled: false
   - name: marlon
     platform: twitch

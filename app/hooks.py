@@ -16,7 +16,7 @@ Return ONLY JSON:
   "spoiler": true/false (major story spoiler like ending or final mission),
   "variants": {{ {langs} }} }}
 Each language value: {{"hook": max 6 words, punchy, curiosity, no clickbait lies, 1 emoji max,
- "caption": 1 short sentence + credit "🎥 {channel}", "hashtags": 4-5 hashtags incl. #gta6}}
+ "caption": 1 short sentence that names {channel} + credit "🎥 {channel}", never negative about {channel}, "hashtags": 4-5 hashtags incl. #gta6}}
 Write each variant natively in its language."""
 
 

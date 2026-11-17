@@ -70,7 +70,8 @@ def process(job, conf):
         text, lang, words = ("", "en", [])
         if conf["transcribe"]["engine"] != "none":
             text, lang, words = media.transcribe(raw, conf["transcribe"]["model"])
-        h = hooks.generate(ch["name"], text, job["chat"], conf["languages"])
+        langs = ch.get("langs") or conf["languages"]
+        h = hooks.generate(ch.get("display", ch["name"]), text, job["chat"], langs)
         spoiler = h.get("spoiler") or any(k in text.lower() for k in conf["spoiler_keywords"])
         status = "spoiler" if spoiler else ("lowq" if h.get("quality", 6) < 5 else "done")
         c.execute("UPDATE clips SET transcript=?, status=?, score=score*? WHERE id=?",
@@ -79,7 +80,7 @@ def process(job, conf):
         if status != "done":
             log.info("clip %s verworfen: %s", clip_id, status)
             return
-        for l in conf["languages"]:
+        for l in langs:
             v = h["variants"][l]
             ass = raw.replace("_raw.mp4", f"_{l}.ass")
             out = raw.replace("_raw.mp4", f"_{l}.mp4")
@@ -87,9 +88,9 @@ def process(job, conf):
             media.build_ass(ass, v["hook"], words, dur, conf["render"]["accent_color"], show_subs=(l == lang))
             media.render_vertical(raw, ass, out, conf["render"]["width"], conf["render"]["height"])
             c.execute("INSERT INTO variants(clip_id,lang,hook,caption,video_path) VALUES(?,?,?,?,?)",
-                      (clip_id, l, v["hook"], f"{v['caption']}\n\n{v.get('hashtags','')}", out))
+                      (clip_id, l, v["hook"], f"{v['caption']}\n\n{v.get('hashtags','')} {ch.get('hashtags','')}".strip(), out))
             c.commit()
-        log.info("clip %s fertig (%s Varianten)", clip_id, len(conf["languages"]))
+        log.info("clip %s fertig (%s Varianten)", clip_id, len(langs))
     except Exception as e:
         c.execute("UPDATE clips SET status='error', error=? WHERE id=?", (str(e)[:500], clip_id))
         c.commit()
