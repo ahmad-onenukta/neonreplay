@@ -1,0 +1,48 @@
+# NeonReplay – Konfiguration
+# Kanäle: nur Streamer aus Kampagnen mit Clip-Erlaubnis (Whop/Vyro) eintragen!
+channels:
+  - name: beispielstreamer          # Twitch-Login-Name
+    platform: twitch                # twitch | kick | youtube
+    url: https://twitch.tv/beispielstreamer
+    campaign: "Whop – Beispielkampagne"
+    cpm_usd: 1.0                    # Auszahlung pro 1.000 Views
+    enabled: false
+
+buffer:
+  segment_seconds: 10
+  segments_kept: 60                 # 60 x 10 s = 10 Min Ringpuffer
+  quality: "720p60,720p,best"
+
+trigger:
+  window_seconds: 10
+  spike_factor: 3.0                 # Chat-Rate > 3x Durchschnitt
+  min_msgs_per_sec: 4
+  audio_peak_db: -6.0               # max_volume über diesem Wert = Peak
+  cooldown_seconds: 120             # pro Kanal
+  pre_seconds: 45                   # Sekunden vor dem Trigger
+  post_seconds: 15                  # Sekunden nach dem Trigger
+
+render:
+  width: 1080
+  height: 1920
+  layout: blur                      # blur = 16:9 mittig auf unscharfem Hintergrund
+  font: /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+  hook_color: "white"
+  accent_color: "#FF2E88"
+
+transcribe:
+  engine: faster-whisper            # faster-whisper | none
+  model: small
+
+languages: [en, de, ur]             # pro Clip werden Hook + Caption je Sprache erzeugt
+
+posting:
+  mode: queue                       # queue = nur ins Dashboard | auto = sofort an Metricool
+  max_posts_per_account_per_day: 5
+  min_minutes_between_posts: 30
+  brands:                           # Metricool-Brand (blogId) je Sprache
+    en: { blog_id: "", networks: [tiktok, instagram, youtube] }
+    de: { blog_id: "", networks: [tiktok, instagram, youtube] }
+    ur: { blog_id: "", networks: [tiktok, instagram, youtube] }
+
+spoiler_keywords: [ending, final mission, credits, abspann, finale]
