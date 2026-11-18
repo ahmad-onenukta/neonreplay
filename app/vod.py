@@ -171,6 +171,9 @@ def loop(conf, put_job, only_frames=False):
                 if req.get("type") in ("frames", "reel"):
                     from . import reels
                     getattr(reels, req["type"])(req)
+                elif req.get("type") == "livetest":
+                    from . import reels
+                    reels.livetest(req, put_job)
                 else:
                     handle(req, conf, put_job)
                 os.rename(p + ".running", p + ".done")

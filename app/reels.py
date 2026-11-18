@@ -92,3 +92,16 @@ def reel(req):
         if f and os.path.exists(f):
             os.remove(f)
     log.info("reel fertig: %s", out)
+
+
+def livetest(req, put_job):
+    """Live-Test: 60 s eines laufenden Twitch-Streams aufnehmen und durch die normale Pipeline schicken."""
+    name = req["channel"]
+    out = os.path.join(CLIPS, f"livetest_{name}_{int(time.time())}_src_raw.mp4")
+    r = subprocess.run(["streamlink", "--hls-duration", "00:01:00", "-o", out, f"https://www.twitch.tv/{name}", "best"],
+                       capture_output=True, text=True, timeout=300)
+    if not os.path.exists(out) or os.path.getsize(out) < 100_000:
+        raise RuntimeError("streamlink: " + (r.stdout + r.stderr)[-600:])
+    ch = {"name": name, "display": req.get("display", name), "langs": ["en"], "campaign": "", "hashtags": ""}
+    put_job({"channel": ch, "segments": [out], "trigger": "livetest", "score": 1.0,
+             "chat": [f"[stream title: {req.get('title', 'live test')}]"], "cleanup": [out]})
