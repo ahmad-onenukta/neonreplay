@@ -196,12 +196,12 @@ def media(name: str):
 
 @app.get("/api/job")
 def api_job(token: str = "", body: str = ""):
-    """Eigene Reels/Kontaktabzüge (JSON im Parameter body, siehe app/reels.py)."""
+    """Eigene Reels/Kontaktabzüge/Live-Test (JSON im Parameter body, siehe app/reels.py)."""
     _check_token(token)
     import json as _j
     from . import vod
     body = _j.loads(body)
-    if body.get("type") not in ("frames", "reel"):
+    if body.get("type") not in ("frames", "reel", "livetest"):
         raise HTTPException(400)
     p = os.path.join(vod.QDIR, f"{int(time.time())}_{secrets.token_hex(3)}.json")
     with open(p, "w") as f:
