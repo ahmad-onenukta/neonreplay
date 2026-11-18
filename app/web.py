@@ -314,7 +314,7 @@ def _version():
 
 @app.get("/api/selftest")
 def api_selftest(token: str = ""):
-    """Prüft Claude-Key (Hook-Erzeugung) + Tools, ohne etwas zu posten."""
+    """Prüft Claude-Key (Hook-Erzeugung) + Tools + Twitch-Kategorien, ohne etwas zu posten."""
     _check_token(token)
     import shutil
     from . import hooks
@@ -328,7 +328,16 @@ def api_selftest(token: str = ""):
     return {"hook_ok": not h.get("_error"), "error": h.get("_error"), "game": h.get("game"),
             "hook": h["variants"]["en"]["hook"], "ffmpeg": bool(shutil.which("ffmpeg")),
             "yt_dlp": bool(shutil.which("yt-dlp")), "streamlink": bool(shutil.which("streamlink")),
-            "version": _version(), "update_log": upd}
+            "version": _version(), "update_log": upd,
+            "twitch": {n: _sinfo(n) for n in ("lacy", "jasontheween", "clix")}}
+
+
+def _sinfo(n):
+    try:
+        from .worker import stream_info
+        return stream_info(n)
+    except Exception as e:
+        return {"error": str(e)[:200]}
 
 
 @app.get("/health")
