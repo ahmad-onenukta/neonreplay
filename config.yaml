@@ -68,7 +68,7 @@ languages: [en]                     # nur englischer Kanal (DE/UR später)
 
 posting:
   mode: auto                        # auto = fertige Clips gehen automatisch raus (queue = nur nach Freigabe)
-  max_posts_per_account_per_day: 10
+  max_posts_per_account_per_day: 16   # Release-Woche
   min_minutes_between_posts: 30
   brands:                           # Metricool-Brand (blogId) je Sprache
     en: { blog_id: "", networks: [tiktok, instagram, youtube] }
