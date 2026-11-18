@@ -7,6 +7,39 @@ from .triggers import make_chat, AudioWatch
 
 log = logging.getLogger("worker")
 jobs = queue.Queue()
+_GAME_CACHE = {}
+
+
+def stream_info(name):
+    """Aktuelle Twitch-Kategorie + Titel (60 s Cache). Leer, wenn offline/unbekannt."""
+    import requests
+    now = time.time()
+    c = _GAME_CACHE.get(name)
+    if c and now - c[0] < 60:
+        return c[1]
+    info = {"game": "", "title": ""}
+    try:
+        r = requests.post("https://gql.twitch.tv/gql", timeout=10,
+                          headers={"Client-Id": "kimne78kx3ncx6brgo4mv6wki5h1ko"},
+                          json={"query": 'query{user(login:"%s"){stream{title game{name}}}}' % name})
+        st = (((r.json() or {}).get("data") or {}).get("user") or {}).get("stream") or {}
+        info = {"game": ((st.get("game") or {}).get("name") or ""), "title": st.get("title") or ""}
+    except Exception as e:
+        log.warning("Twitch-Info %s: %s", name, e)
+    if not info["game"]:
+        try:
+            g = requests.get(f"https://decapi.me/twitch/game/{name}", timeout=10).text.strip()
+            if g and "offline" not in g.lower() and "error" not in g.lower():
+                info["game"] = g
+        except Exception:
+            pass
+    _GAME_CACHE[name] = (now, info)
+    return info
+
+
+def is_gta(text):
+    t = (text or "").lower()
+    return "grand theft auto" in t or "gta" in t
 
 
 class Channel:
@@ -72,18 +105,30 @@ def process(job, conf):
             except OSError:
                 pass
         dur = media.duration(raw)
+        info = stream_info(ch["name"]) if ch.get("platform", "twitch") == "twitch" and not job["trigger"].startswith("vod") else {"game": "", "title": ""}
+        chat = list(job["chat"])
+        if info["game"]:
+            chat = [f"[stream category: {info['game']} | stream title: {info['title']}]"] + chat
+            if not is_gta(info["game"]):
+                c.execute("UPDATE clips SET transcript=?, status='offtopic', error=? WHERE id=?",
+                          ("", f"category: {info['game']}", clip_id))
+                c.commit()
+                log.info("clip %s verworfen: Kategorie %s", clip_id, info["game"])
+                return
         text, lang, words = ("", "en", [])
         if conf["transcribe"]["engine"] != "none":
             text, lang, words = media.transcribe(raw, conf["transcribe"]["model"])
         langs = ch.get("langs") or conf["languages"]
-        h = hooks.generate(ch.get("display", ch["name"]), text, job["chat"], langs)
+        h = hooks.generate(ch.get("display", ch["name"]), text, chat, langs)
         spoiler = h.get("spoiler") or any(k in text.lower() for k in conf["spoiler_keywords"])
         game = (h.get("game") or "").lower()
+        if is_gta(info["game"]):
+            game = "gta"  # Twitch-Kategorie ist verlässlicher als die Modell-Schätzung
         if h.get("_error"):
             status = "nohook"  # ohne echten Hook nicht rendern
         elif spoiler:
             status = "spoiler"
-        elif "gta" not in game and "grand theft" not in game:
+        elif not is_gta(game):
             status = "offtopic"  # nur GTA-Inhalte
         else:
             status = "lowq" if h.get("quality", 6) < 5 else "done"
