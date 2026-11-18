@@ -174,7 +174,7 @@ def main():
         # Kanäle können im Dashboard ein-/ausgeschaltet werden (ohne Neustart einschalten)
         on = settings().get("ENABLED_CHANNELS")
         for ch in conf["channels"]:
-            active = (ch["name"] in on) if on is not None else ch.get("enabled")
+            active = ((ch["name"] in on) if on is not None else False) or bool(ch.get("enabled"))
             if ch.get("blocked"):
                 active = False
             if active and ch["name"] not in running:

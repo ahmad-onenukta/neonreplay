@@ -35,6 +35,24 @@ channels:                           # enabled: true erst NACH Kampagnen-Beitritt
     campaign: "Content Rewards – Clix Pool $5K (Nov, 500K Views)"
     cpm_usd: 1.0
     enabled: false
+  - name: kaicenat
+    platform: twitch
+    url: https://twitch.tv/kaicenat
+    display: Kai Cenat
+    hashtags: "#KaiCenat"           # Pflicht laut Kampagne, Name in Caption
+    langs: [en]
+    campaign: "Content Rewards – Kai Cenat $10K GTA 6 Pool (750K Views)"
+    cpm_usd: 1.0
+    enabled: true
+  - name: yourragegaming
+    platform: twitch
+    url: https://twitch.tv/yourragegaming
+    display: YourRAGE
+    hashtags: "#YourRAGE"
+    langs: [en]
+    campaign: "Content Rewards – YourRAGE $5K GTA 6 Pool (500K Views)"
+    cpm_usd: 1.0
+    enabled: true
   # Kick-Beispiel: url: https://kick.com/<slug>, platform: kick, optional chatroom_id: 123456 (falls kick.com-API blockt)
   # YouTube-Beispiel: url: https://www.youtube.com/@kanal/live, platform: youtube
 
