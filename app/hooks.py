@@ -18,7 +18,7 @@ Return ONLY JSON:
   "game": "detected game or 'just chatting' or 'unknown'",
   "variants": {{ {langs} }} }}
 Each language value: {{"hook": max 6 words, punchy, curiosity, no clickbait lies, 1 emoji max,
- "caption": 1 short sentence that names {channel} + credit "🎥 {channel}", never negative about {channel}, "hashtags": 4-5 hashtags; include #gta6 only if the clip is GTA, otherwise use fitting game/streamer hashtags}}
+ "caption": 1 short sentence that names {channel} + credit "🎥 {channel}", never negative, mocking or insulting about {channel} (no jokes about their intelligence, looks or skill), "hashtags": 4-5 hashtags; include #gta6 only if the clip is GTA, otherwise use fitting game/streamer hashtags}}
 Write each variant natively in its language."""
 
 

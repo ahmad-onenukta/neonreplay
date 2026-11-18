@@ -16,6 +16,7 @@ channels:                           # enabled: true erst NACH Kampagnen-Beitritt
     campaign: "Content Rewards – Marlon $5K"
     cpm_usd: 2.5
     enabled: false
+    blocked: true                   # Kampagne erlaubt KEINE Livestream-Clips -> nie aufnehmen/posten
   - name: jasontheween
     platform: twitch
     url: https://twitch.tv/jasontheween
@@ -63,11 +64,11 @@ transcribe:
   engine: faster-whisper            # faster-whisper | none
   model: small
 
-languages: [en, de, ur]             # pro Clip werden Hook + Caption je Sprache erzeugt
+languages: [en]                     # nur englischer Kanal (DE/UR später)
 
 posting:
-  mode: queue                       # queue = nur ins Dashboard | auto = sofort an Metricool
-  max_posts_per_account_per_day: 5
+  mode: auto                        # auto = fertige Clips gehen automatisch raus (queue = nur nach Freigabe)
+  max_posts_per_account_per_day: 10
   min_minutes_between_posts: 30
   brands:                           # Metricool-Brand (blogId) je Sprache
     en: { blog_id: "", networks: [tiktok, instagram, youtube] }
