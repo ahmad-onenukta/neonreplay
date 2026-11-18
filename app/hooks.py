@@ -28,20 +28,26 @@ def generate(channel, transcript, chat, langs):
     if not key:
         return _fallback(channel, langs)
     lang_spec = ", ".join(f'"{l}": {{...{LANG_NAMES.get(l, l)}...}}' for l in langs)
-    body = {"model": MODEL, "max_tokens": 900,
+    body = {"model": MODEL, "max_tokens": 3000, "thinking": {"type": "disabled"},
             "messages": [{"role": "user", "content": PROMPT.format(
-                channel=channel, chat=" | ".join(chat[:1] + chat[-20:] if chat and chat[0].startswith("[stream title") else chat[-20:])[:1500] or "-",
+                channel=channel, chat=" | ".join(chat[:1] + chat[-20:] if chat and chat[0].startswith("[stream") else chat[-20:])[:1500] or "-",
                 transcript=transcript[:2500] or "-", langs=lang_spec)}]}
     r = None
     try:
-        r = requests.post("https://api.anthropic.com/v1/messages", json=body, timeout=60,
-                          headers={"x-api-key": key, "anthropic-version": "2023-06-01"})
+        hdr = {"x-api-key": key, "anthropic-version": "2023-06-01"}
+        r = requests.post("https://api.anthropic.com/v1/messages", json=body, timeout=60, headers=hdr)
+        if r.status_code == 400 and "thinking" in r.text:  # Modell kennt den Parameter nicht -> ohne
+            body.pop("thinking", None)
+            r = requests.post("https://api.anthropic.com/v1/messages", json=body, timeout=60, headers=hdr)
         r.raise_for_status()
         # Antwort kann Denk-Blöcke enthalten -> nur Text-Blöcke nehmen
         txt = "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
         data = json.loads(re.search(r"\{.*\}", txt, re.S).group(0))
         for l in langs:
             data["variants"].setdefault(l, _fallback(channel, [l])["variants"][l])
+            v = data["variants"][l]
+            if isinstance(v.get("hashtags"), list):
+                v["hashtags"] = " ".join(v["hashtags"])
         return data
     except Exception as e:
         detail = ""
