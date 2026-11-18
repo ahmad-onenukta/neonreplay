@@ -113,7 +113,7 @@ def api_queue(token: str = "", limit: int = 3):
     c = db.conn()
     conf = cfg()
     pconf = conf["posting"]
-    auto = (setting("POSTING_MODE") or pconf["mode"]) == "auto"
+    auto = "auto" in (setting("POSTING_MODE"), pconf["mode"])
     states = ("approved", "ready") if auto else ("approved",)
     base = setting("PUBLIC_BASE_URL").rstrip("/")
     now = time.time()
@@ -127,9 +127,11 @@ def api_queue(token: str = "", limit: int = 3):
                                  (lang, now - 86400)).fetchone()[0]
         last = c.execute("SELECT MAX(posted_at) FROM variants WHERE lang=? AND status IN ('posted','posting')", (lang,)).fetchone()[0] or 0
         free = max(0, pconf["max_posts_per_account_per_day"] - posted_today)
+        blocked = [n for n, ch in chans.items() if ch.get("blocked")] or ["-"]
         rows = c.execute(f"SELECT v.*, c.channel FROM variants v JOIN clips c ON c.id=v.clip_id WHERE v.lang=? AND v.status IN "
-                         f"({','.join('?'*len(states))}) ORDER BY v.status='approved' DESC, v.id DESC LIMIT ?",
-                         (lang, *states, min(limit, free))).fetchall()
+                         f"({','.join('?'*len(states))}) AND c.channel NOT IN ({','.join('?'*len(blocked))}) "
+                         f"ORDER BY v.status='approved' DESC, v.id DESC LIMIT ?",
+                         (lang, *states, *blocked, min(limit, free))).fetchall()
         for i, r in enumerate(rows):
             ch = chans.get(r["channel"], {})
             out.append({"id": r["id"], "lang": lang, "blogId": blog, "hook": r["hook"], "caption": r["caption"],
@@ -196,7 +198,7 @@ def media(name: str):
 
 @app.get("/api/job")
 def api_job(token: str = "", body: str = ""):
-    """Eigene Reels/Kontaktabzüge/Live-Test (JSON im Parameter body, siehe app/reels.py)."""
+    """Eigene Reels/Kontaktabzüge (JSON im Parameter body, siehe app/reels.py)."""
     _check_token(token)
     import json as _j
     from . import vod
@@ -314,7 +316,7 @@ def _version():
 
 @app.get("/api/selftest")
 def api_selftest(token: str = ""):
-    """Prüft Claude-Key (Hook-Erzeugung) + Tools + Twitch-Kategorien, ohne etwas zu posten."""
+    """Prüft Claude-Key (Hook-Erzeugung) + Tools, ohne etwas zu posten."""
     _check_token(token)
     import shutil
     from . import hooks

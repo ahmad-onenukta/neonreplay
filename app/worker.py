@@ -118,7 +118,7 @@ def process(job, conf):
         text, lang, words = ("", "en", [])
         if conf["transcribe"]["engine"] != "none":
             text, lang, words = media.transcribe(raw, conf["transcribe"]["model"])
-        langs = ch.get("langs") or conf["languages"]
+        langs = [l for l in (ch.get("langs") or conf["languages"]) if l in conf["languages"]] or ["en"]
         h = hooks.generate(ch.get("display", ch["name"]), text, chat, langs)
         spoiler = h.get("spoiler") or any(k in text.lower() for k in conf["spoiler_keywords"])
         game = (h.get("game") or "").lower()
@@ -175,6 +175,8 @@ def main():
         on = settings().get("ENABLED_CHANNELS")
         for ch in conf["channels"]:
             active = (ch["name"] in on) if on is not None else ch.get("enabled")
+            if ch.get("blocked"):
+                active = False
             if active and ch["name"] not in running:
                 Channel(ch, conf).start()
                 running.add(ch["name"])
