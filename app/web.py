@@ -312,6 +312,25 @@ def _version():
         return "?"
 
 
+@app.get("/api/selftest")
+def api_selftest(token: str = ""):
+    """Prüft Claude-Key (Hook-Erzeugung) + Tools, ohne etwas zu posten."""
+    _check_token(token)
+    import shutil
+    from . import hooks
+    h = hooks.generate("Lacy", "bro the cops are chasing me in Vice City GTA 6 this is insane",
+                       ["[stream title: GTA 6 day one]", "LMAOOO", "GTA 6 IS CRAZY"], ["en"])
+    upd = ""
+    try:
+        upd = open(os.path.join(os.path.dirname(CLIPS), "update.log")).read()[-600:]
+    except Exception:
+        pass
+    return {"hook_ok": not h.get("_error"), "error": h.get("_error"), "game": h.get("game"),
+            "hook": h["variants"]["en"]["hook"], "ffmpeg": bool(shutil.which("ffmpeg")),
+            "yt_dlp": bool(shutil.which("yt-dlp")), "streamlink": bool(shutil.which("streamlink")),
+            "version": _version(), "update_log": upd}
+
+
 @app.get("/health")
 def health():
     return {"ok": True, "version": _version()}

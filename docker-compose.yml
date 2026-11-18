@@ -24,5 +24,29 @@ services:
     volumes: ["./data:/data"]
     restart: unless-stopped
 
+  # Selbstheilendes Auto-Update: baut neu, solange der gebaute Stand != GitHub-Stand ist
+  updater:
+    image: docker:27-cli
+    working_dir: /opt/neonreplay
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "/opt/neonreplay:/opt/neonreplay"]
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache git >/dev/null 2>&1
+        git config --global --add safe.directory /opt/neonreplay
+        while true; do
+          git fetch -q origin main && git reset -q --hard origin/main
+          H=$$(git rev-parse HEAD)
+          if [ "$$H" != "$$(cat data/.built 2>/dev/null)" ]; then
+            echo "$$(date) build $$H" >> data/update.log
+            if docker compose -p neonreplay up -d --build worker web caddy cleanup >> data/update.log 2>&1; then
+              echo "$$H" > data/.built
+            fi
+          fi
+          sleep 180
+        done
+    restart: unless-stopped
+
 volumes:
   caddy_data:
