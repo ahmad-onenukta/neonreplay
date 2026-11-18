@@ -37,7 +37,8 @@ def generate(channel, transcript, chat, langs):
         r = requests.post("https://api.anthropic.com/v1/messages", json=body, timeout=60,
                           headers={"x-api-key": key, "anthropic-version": "2023-06-01"})
         r.raise_for_status()
-        txt = r.json()["content"][0]["text"]
+        # Antwort kann Denk-Blöcke enthalten -> nur Text-Blöcke nehmen
+        txt = "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
         data = json.loads(re.search(r"\{.*\}", txt, re.S).group(0))
         for l in langs:
             data["variants"].setdefault(l, _fallback(channel, [l])["variants"][l])
