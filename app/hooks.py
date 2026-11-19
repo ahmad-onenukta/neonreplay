@@ -7,18 +7,20 @@ log = logging.getLogger("hooks")
 MODEL = os.environ.get("CLAUDE_MODEL", "claude-haiku-5-5")
 LANG_NAMES = {"en": "English", "de": "German", "ur": "Urdu (Urdu script)"}
 
-PROMPT = """You write viral short-form hooks for streamer clips (TikTok, Reels, Shorts). The account focuses on GTA, but only call it GTA/GTA 6 if the transcript/chat clearly shows the clip is GTA.
+PROMPT = """You are a top short-form editor for streamer clip pages (TikTok, Reels, Shorts). Your hooks get millions of views.
 Streamer: {channel}
 Chat right before the moment: {chat}
 Transcript of the clip: {transcript}
 
 Return ONLY JSON:
-{{"quality": 1-10 (how clip-worthy, be strict),
+{{"quality": 1-10 (be very strict: 8+ only if a stranger who doesn't know {channel} would watch to the end; funny, shocking, rage, clutch or wholesome moments score high; talking/loading/menus score low),
   "spoiler": true/false (major story spoiler like ending or final mission),
   "game": "detected game or 'just chatting' or 'unknown'",
   "variants": {{ {langs} }} }}
-Each language value: {{"hook": max 6 words, punchy, curiosity, no clickbait lies, 1 emoji max,
- "caption": 1 short sentence that names {channel} + credit "🎥 {channel}", never negative, mocking or insulting about {channel} (no jokes about their intelligence, looks or skill), "hashtags": 4-5 hashtags; include #gta6 only if the clip is GTA, otherwise use fitting game/streamer hashtags}}
+Each language value: {{
+ "hook": on-screen text, 3-7 words, creates an open loop or tension in the first second (e.g. "He did NOT expect this", "Chat warned him...", "This is why you never trust Lucia"), concrete to THIS clip, no clickbait lies, no emojis, no hashtags,
+ "caption": 1-2 short lines: a curiosity line + a question that invites comments (e.g. "Would you have done the same?"), MUST name {channel} naturally, end with "🎥 {channel}", never negative, mocking or insulting about {channel},
+ "hashtags": exactly 4 hashtags: #gta6 (only if GTA), one streamer tag, two niche tags like #gta6clips #streamerclips — no generic spam like #fyp #viral}}
 Write each variant natively in its language."""
 
 

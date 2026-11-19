@@ -9,3 +9,5 @@ requests>=2.31
 websocket-client>=1.7
 chat-downloader>=0.2.8
 yt-dlp>=2025.1.1
+opencv-python-headless>=4.8,<5
+numpy<3
