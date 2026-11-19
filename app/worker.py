@@ -140,7 +140,7 @@ def process(job, conf):
             return
         cam = None
         try:
-            cam = media.find_facecam(raw)  # Facecam oben, Spiel unten (Standard viraler Streamer-Clips)
+            cam = None if ch.get("full_frame") else media.find_facecam(raw)  # Facecam oben, Spiel unten (Standard viraler Streamer-Clips)
         except Exception as e:
             log.warning("facecam %s: %s", clip_id, e)
         src = raw
@@ -156,13 +156,15 @@ def process(job, conf):
             # Wort-Untertitel nur, wenn Clip-Sprache = Zielsprache (sonst nur Hook)
             media.build_ass(ass, v["hook"], words, dur, conf["render"]["accent_color"], show_subs=(l == lang),
                             brand=not ch.get("campaign"), hook_y=640 if cam else 230)
-            media.render_vertical(src, ass, out, conf["render"]["width"], conf["render"]["height"], cam=cam)
+            media.render_vertical(src, ass, out, conf["render"]["width"], conf["render"]["height"], cam=cam,
+                                 full=bool(ch.get("full_frame")))
             try:
                 media.cover(out, out.replace(".mp4", ".jpg"))
             except Exception as e:
                 log.warning("cover %s: %s", clip_id, e)
             c.execute("INSERT INTO variants(clip_id,lang,hook,caption,video_path) VALUES(?,?,?,?,?)",
-                      (clip_id, l, v["hook"], f"{v['caption']}\n\n{v.get('hashtags','')} {ch.get('hashtags','')}".strip(), out))
+                      (clip_id, l, v["hook"], (f"{v['caption']}" + (f"\n{ch['caption_suffix']}" if ch.get("caption_suffix") else "")
+                       + f"\n\n{v.get('hashtags','')} {ch.get('hashtags','')}").strip(), out))
             c.commit()
         log.info("clip %s fertig (%s Varianten)", clip_id, len(langs))
     except Exception as e:

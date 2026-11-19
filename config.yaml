@@ -53,6 +53,17 @@ channels:                           # enabled: true erst NACH Kampagnen-Beitritt
     campaign: "Content Rewards – YourRAGE $5K GTA 6 Pool (500K Views)"
     cpm_usd: 1.0
     enabled: true
+  - name: kreekcraft
+    platform: twitch
+    url: https://twitch.tv/kreekcraft
+    display: KreekCraft
+    hashtags: "#GTA6 #KreekCraft #GrandTheftAutoVI"   # Pflicht laut Briefing
+    caption_suffix: "Watch KreekCraft on YouTube and Twitch"  # Pflicht laut Briefing
+    full_frame: true                # offizielles Overlay muss komplett sichtbar bleiben
+    langs: [en]
+    campaign: "Content Rewards – KreekCraft GTA 6 ($1/1K, fest)"
+    cpm_usd: 1.0
+    enabled: true
   # Kick-Beispiel: url: https://kick.com/<slug>, platform: kick, optional chatroom_id: 123456 (falls kick.com-API blockt)
   # YouTube-Beispiel: url: https://www.youtube.com/@kanal/live, platform: youtube
 

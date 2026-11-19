@@ -153,7 +153,7 @@ def find_facecam(src):
     return (x / W, y / H, bw / W, bh / H)
 
 
-def render_vertical(src, ass, out, w=1080, h=1920, cam=None):
+def render_vertical(src, ass, out, w=1080, h=1920, cam=None, full=False):
     """cam=None: Spielszene mittig über unscharfem Hintergrund.
     cam=(x,y,w,h): Facecam oben (1080x700), Spielszene unten (1080x1220) – Standard viraler Streamer-Clips."""
     ass_esc = ass.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
@@ -164,6 +164,10 @@ def render_vertical(src, ass, out, w=1080, h=1920, cam=None):
               f"[a]crop=iw*{cw:.4f}:ih*{ch:.4f}:iw*{cx:.4f}:ih*{cy:.4f},scale={w}:{top_h}:force_original_aspect_ratio=increase,crop={w}:{top_h}[cam];"
               f"[b]crop=ih*{w / bot_h:.4f}:ih,scale={w}:{bot_h}[game];"
               f"[cam][game]vstack=inputs=2,subtitles='{ass_esc}'[v]")
+    elif full:  # ganzes 16:9-Bild (Streamer-Overlay bleibt sichtbar) über unscharfem Hintergrund
+        vf = (f"[0:v]split[a][b];"
+              f"[a]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},boxblur=25:2,eq=brightness=-0.15[bg];"
+              f"[b]scale={w}:-2[fg];[bg][fg]overlay=0:(H-h)/2,subtitles='{ass_esc}'[v]")
     else:
         vf = (f"[0:v]crop=ih:ih,split[a][b];"
               f"[a]scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},boxblur=25:2,eq=brightness=-0.15[bg];"
