@@ -123,8 +123,10 @@ def api_queue(token: str = "", limit: int = 3):
         blog = setting(f"BLOG_ID_{lang.upper()}")
         if not blog:
             continue
+        from zoneinfo import ZoneInfo
+        midnight = datetime.datetime.now(ZoneInfo("Europe/Berlin")).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
         posted_today = c.execute("SELECT COUNT(*) FROM variants WHERE lang=? AND status IN ('posted','posting') AND posted_at>?",
-                                 (lang, now - 86400)).fetchone()[0]
+                                 (lang, midnight)).fetchone()[0]
         last = c.execute("SELECT MAX(posted_at) FROM variants WHERE lang=? AND status IN ('posted','posting')", (lang,)).fetchone()[0] or 0
         free = max(0, pconf["max_posts_per_account_per_day"] - posted_today)
         blocked = [n for n, ch in chans.items() if ch.get("blocked")] or ["-"]
@@ -136,7 +138,10 @@ def api_queue(token: str = "", limit: int = 3):
             ch = chans.get(r["channel"], {})
             out.append({"id": r["id"], "lang": lang, "blogId": blog, "hook": r["hook"], "caption": r["caption"],
                         "text": f"{r['hook']}\n\n{r['caption']}", "media_url": f"{base}/media/{os.path.basename(r['video_path'])}",
-                        "streamer": ch.get("display", r["channel"]), "networks": pconf["brands"].get(lang, {}).get("networks", []),
+                        "streamer": ch.get("display", r["channel"]),
+                        "cover_url": (f"{base}/media/{os.path.basename(r['video_path'])[:-4]}.jpg"
+                                      if os.path.exists(r["video_path"][:-4] + ".jpg") else ""),
+                        "campaign": ch.get("campaign", ""), "networks": pconf["brands"].get(lang, {}).get("networks", []),
                         "earliest_minutes_from_now": max(0, int((last + pconf["min_minutes_between_posts"] * 60 * (i + 1) - now) / 60))})
     return {"count": len(out), "items": out}
 
@@ -189,7 +194,7 @@ def api_status(token: str = "", limit: int = 20):
 @app.get("/media/{name}")
 def media(name: str):
     path = os.path.join(CLIPS, os.path.basename(name))
-    if name.startswith("sheet_") and name.endswith(".jpg") and os.path.exists(path):
+    if (name.startswith("sheet_") or name.endswith(("_en.jpg", "_de.jpg", "_ur.jpg"))) and name.endswith(".jpg") and os.path.exists(path):
         return FileResponse(path, media_type="image/jpeg")
     if not name.endswith(".mp4") or "_raw" in name or not os.path.exists(path):
         raise HTTPException(404)
@@ -331,7 +336,7 @@ def api_selftest(token: str = ""):
             "hook": h["variants"]["en"]["hook"], "ffmpeg": bool(shutil.which("ffmpeg")),
             "yt_dlp": bool(shutil.which("yt-dlp")), "streamlink": bool(shutil.which("streamlink")),
             "version": _version(), "update_log": upd,
-            "twitch": {n: _sinfo(n) for n in ("lacy", "jasontheween", "clix")}}
+            "twitch": {n: _sinfo(n) for n in ("lacy", "jasontheween", "clix", "kaicenat", "yourragegaming")}}
 
 
 def _sinfo(n):

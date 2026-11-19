@@ -86,11 +86,13 @@ languages: [en]                     # nur englischer Kanal (DE/UR später)
 
 posting:
   mode: auto                        # auto = fertige Clips gehen automatisch raus (queue = nur nach Freigabe)
-  max_posts_per_account_per_day: 16   # Release-Woche
-  min_minutes_between_posts: 30
+  max_posts_per_account_per_day: 6    # Qualität statt Masse (TikTok zusätzlich max. 3 als Entwurf)
+  min_minutes_between_posts: 120     # 2 Std. Abstand
   brands:                           # Metricool-Brand (blogId) je Sprache
-    en: { blog_id: "", networks: [tiktok, instagram, youtube] }
+    en: { blog_id: "", networks: [instagram, youtube] }   # TikTok separat als Entwurf (max. 3/Tag, Nutzer postet per Tipp)
     de: { blog_id: "", networks: [tiktok, instagram, youtube] }
     ur: { blog_id: "", networks: [tiktok, instagram, youtube] }
+
+min_quality: 7                      # Clips unter 7/10 werden nicht gepostet
 
 spoiler_keywords: [ending, final mission, credits, abspann, finale]

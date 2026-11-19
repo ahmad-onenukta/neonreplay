@@ -131,21 +131,30 @@ def process(job, conf):
         elif not is_gta(game):
             status = "offtopic"  # nur GTA-Inhalte
         else:
-            status = "lowq" if h.get("quality", 6) < 5 else "done"
+            status = "lowq" if h.get("quality", 6) < conf.get("min_quality", 7) else "done"
         c.execute("UPDATE clips SET transcript=?, status=?, score=score*?, error=? WHERE id=?",
                   (text, status, h.get("quality", 6) / 6, h.get("_error") or (f"game: {h.get('game')}" if h.get("game") else None), clip_id))
         c.commit()
         if status != "done":
             log.info("clip %s verworfen: %s", clip_id, status)
             return
+        cam = None
+        try:
+            cam = media.find_facecam(raw)  # Facecam oben, Spiel unten (Standard viraler Streamer-Clips)
+        except Exception as e:
+            log.warning("facecam %s: %s", clip_id, e)
         for l in langs:
             v = h["variants"][l]
             ass = raw.replace("_raw.mp4", f"_{l}.ass")
             out = raw.replace("_raw.mp4", f"_{l}.mp4")
             # Wort-Untertitel nur, wenn Clip-Sprache = Zielsprache (sonst nur Hook)
             media.build_ass(ass, v["hook"], words, dur, conf["render"]["accent_color"], show_subs=(l == lang),
-                            brand=not ch.get("campaign"))
-            media.render_vertical(raw, ass, out, conf["render"]["width"], conf["render"]["height"])
+                            brand=not ch.get("campaign"), hook_y=640 if cam else 230)
+            media.render_vertical(raw, ass, out, conf["render"]["width"], conf["render"]["height"], cam=cam)
+            try:
+                media.cover(out, out.replace(".mp4", ".jpg"))
+            except Exception as e:
+                log.warning("cover %s: %s", clip_id, e)
             c.execute("INSERT INTO variants(clip_id,lang,hook,caption,video_path) VALUES(?,?,?,?,?)",
                       (clip_id, l, v["hook"], f"{v['caption']}\n\n{v.get('hashtags','')} {ch.get('hashtags','')}".strip(), out))
             c.commit()
