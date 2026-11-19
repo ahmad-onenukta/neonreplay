@@ -164,7 +164,7 @@ def process(job, conf):
                 log.warning("cover %s: %s", clip_id, e)
             c.execute("INSERT INTO variants(clip_id,lang,hook,caption,video_path) VALUES(?,?,?,?,?)",
                       (clip_id, l, v["hook"], (f"{v['caption']}" + (f"\n{ch['caption_suffix']}" if ch.get("caption_suffix") else "")
-                       + f"\n\n{v.get('hashtags','')} {ch.get('hashtags','')}").strip(), out))
+                       + f"\n\n{'#ad ' if ch.get('campaign') else ''}{v.get('hashtags','')} {ch.get('hashtags','')}").strip(), out))
             c.commit()
         log.info("clip %s fertig (%s Varianten)", clip_id, len(langs))
     except Exception as e:
