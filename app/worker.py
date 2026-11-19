@@ -143,6 +143,12 @@ def process(job, conf):
             cam = media.find_facecam(raw)  # Facecam oben, Spiel unten (Standard viraler Streamer-Clips)
         except Exception as e:
             log.warning("facecam %s: %s", clip_id, e)
+        src = raw
+        if conf.get("music_filter", True):
+            clean = raw.replace("_raw.mp4", "_clean_raw.mp4")
+            if media.remove_music(raw, clean):  # GTA-Radiomusik raus (YouTube Content ID), Stimme bleibt
+                src = clean
+                log.info("clip %s: Musik entfernt", clip_id)
         for l in langs:
             v = h["variants"][l]
             ass = raw.replace("_raw.mp4", f"_{l}.ass")
@@ -150,7 +156,7 @@ def process(job, conf):
             # Wort-Untertitel nur, wenn Clip-Sprache = Zielsprache (sonst nur Hook)
             media.build_ass(ass, v["hook"], words, dur, conf["render"]["accent_color"], show_subs=(l == lang),
                             brand=not ch.get("campaign"), hook_y=640 if cam else 230)
-            media.render_vertical(raw, ass, out, conf["render"]["width"], conf["render"]["height"], cam=cam)
+            media.render_vertical(src, ass, out, conf["render"]["width"], conf["render"]["height"], cam=cam)
             try:
                 media.cover(out, out.replace(".mp4", ".jpg"))
             except Exception as e:

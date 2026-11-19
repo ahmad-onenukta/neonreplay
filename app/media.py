@@ -1,5 +1,5 @@
 """Schnitt, Transkription, Untertitel/Hook (ASS, Urdu-fähig) und 9:16-Render."""
-import os, subprocess, tempfile, logging
+import os, subprocess, tempfile, logging, shutil, sys, threading
 
 log = logging.getLogger("media")
 _model = None
@@ -178,3 +178,58 @@ def cover(video, jpg, t=1.2):
     """Cover-Bild = Frame mit eingebranntem Hook (für IG/YouTube-Thumbnail)."""
     run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{t}", "-i", video, "-frames:v", "1", "-q:v", "3", jpg])
     return jpg
+
+
+_SEP_LOCK = threading.Lock()  # Demucs braucht viel RAM/CPU -> immer nur ein Lauf gleichzeitig
+
+
+def _music_share(stems, win=1.0, sr=44100):
+    """Anteil der Sekunden, in denen Schlagzeug+Bass einen großen Teil der Lautstärke ausmachen (= Song läuft).
+    Spiel-Effekte (Schüsse, Explosionen) sind kurz, Radiomusik ist durchgehend."""
+    import numpy as np
+    n = int(win * sr)
+    mono = {k: (v.mean(axis=1) if v.ndim > 1 else v) for k, v in stems.items()}
+    L = min(len(x) for x in mono.values())
+    mix = sum(mono[k][:L] for k in mono)
+    rhythm = mono["drums"][:L] + mono["bass"][:L]
+    hits = total = 0
+    for i in range(0, L - n + 1, n):
+        m = float(np.sqrt(np.mean(mix[i:i + n] ** 2)))
+        if m < 0.01:  # Stille
+            continue
+        total += 1
+        r = float(np.sqrt(np.mean(rhythm[i:i + n] ** 2)))
+        if r > 0.35 * m:
+            hits += 1
+    return hits / total if total else 0.0
+
+
+def remove_music(src, out, threshold=0.4):
+    """Trennt den Ton per Demucs. Läuft lizenzierte Musik (z. B. GTA-Radio), wird nur die Stimmspur
+    behalten (Streamer-Stimme). Gibt True zurück, wenn `out` mit gefiltertem Ton erzeugt wurde.
+    Fehlt Demucs oder schlägt etwas fehl -> False (Originalton bleibt)."""
+    try:
+        import soundfile as sf
+        import demucs  # noqa: F401
+    except ImportError:
+        return False
+    tmp = tempfile.mkdtemp(prefix="sep_")
+    try:
+        wav = os.path.join(tmp, "a.wav")
+        run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-vn", "-ac", "2", "-ar", "44100", wav])
+        with _SEP_LOCK:
+            run([sys.executable, "-m", "demucs", "-n", "htdemucs", "-d", "cpu", "-j", "2", "-o", tmp, wav])
+        d = os.path.join(tmp, "htdemucs", "a")
+        stems = {k: sf.read(os.path.join(d, f"{k}.wav"))[0] for k in ("vocals", "drums", "bass", "other")}
+        share = _music_share(stems)
+        log.info("Musik-Anteil %.0f%% in %s", share * 100, os.path.basename(src))
+        if share < threshold:
+            return False
+        run(["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-i", os.path.join(d, "vocals.wav"),
+             "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-shortest", out])
+        return True
+    except Exception as e:
+        log.warning("Musik-Filter fehlgeschlagen (%s): %s", os.path.basename(src), str(e)[-300:])
+        return False
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
