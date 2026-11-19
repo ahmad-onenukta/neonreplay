@@ -64,6 +64,17 @@ channels:                           # enabled: true erst NACH Kampagnen-Beitritt
     campaign: "Content Rewards – KreekCraft GTA 6 ($1/1K, fest)"
     cpm_usd: 1.0
     enabled: true
+  - name: darealboeshi
+    platform: twitch
+    url: https://twitch.tv/darealboeshi
+    display: Boeshi
+    hashtags: "#GTA6 #Boeshi #GrandTheftAutoVI"
+    caption_suffix: "Watch Boeshi live on Twitch: twitch.tv/darealboeshi"
+    full_frame: true                # ClipLaunch-Kampagne: Overlay/Stream komplett sichtbar lassen
+    langs: [en]
+    campaign: "Content Rewards – Boeshi GTA 6 ($1/1K, fest)"
+    cpm_usd: 1.0
+    enabled: true
   # Kick-Beispiel: url: https://kick.com/<slug>, platform: kick, optional chatroom_id: 123456 (falls kick.com-API blockt)
   # YouTube-Beispiel: url: https://www.youtube.com/@kanal/live, platform: youtube
 
