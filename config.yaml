@@ -93,7 +93,7 @@ posting:
     de: { blog_id: "", networks: [tiktok, instagram, youtube] }
     ur: { blog_id: "", networks: [tiktok, instagram, youtube] }
 
-min_quality: 7                      # Clips unter 7/10 werden nicht gepostet
+min_quality: 6                      # Clips unter 6/10 werden nicht gepostet (Prompt bewertet streng)
 music_filter: true                  # GTA-Radiomusik per Demucs entfernen (YouTube Content ID)
 
 spoiler_keywords: [ending, final mission, credits, abspann, finale]
