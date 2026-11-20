@@ -89,7 +89,7 @@ trigger:
   min_msgs_per_sec: 4
   audio_peak_db: -6.0               # max_volume über diesem Wert = Peak
   cooldown_seconds: 120             # pro Kanal
-  pre_seconds: 45                   # Sekunden vor dem Trigger
+  pre_seconds: 35                   # Sekunden vor dem Trigger (Clips < 60 s: kein Stummschalten, bessere Wiedergabequote)
   post_seconds: 15                  # Sekunden nach dem Trigger
 
 render:
