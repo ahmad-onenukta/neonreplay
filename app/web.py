@@ -107,7 +107,7 @@ def _check_token(token):
 
 
 @app.get("/api/queue")
-def api_queue(token: str = "", limit: int = 3):
+def api_queue(token: str = "", limit: int = 3, claim: int = 0):
     """Freigegebene, noch nicht gepostete Clips (pro Sprache max. `limit`), inkl. Rate-Limit-Info."""
     _check_token(token)
     c = db.conn()
@@ -143,6 +143,13 @@ def api_queue(token: str = "", limit: int = 3):
                                       if os.path.exists(r["video_path"][:-4] + ".jpg") else ""),
                         "campaign": ch.get("campaign", ""), "networks": pconf["brands"].get(lang, {}).get("networks", []),
                         "earliest_minutes_from_now": max(0, int((last + pconf["min_minutes_between_posts"] * 60 * (i + 1) - now) / 60))})
+    if claim:
+        # Agent holt sich das Item zum Posten -> sofort sperren, damit es nie doppelt gepostet wird
+        for it in out:
+            if it["earliest_minutes_from_now"] == 0:
+                c.execute("UPDATE variants SET status='posting', posted_at=? WHERE id=? AND status IN ('approved','ready')",
+                          (now, it["id"]))
+        c.commit()
     return {"count": len(out), "items": out}
 
 
