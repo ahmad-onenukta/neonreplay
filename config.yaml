@@ -64,7 +64,8 @@ channels:                           # enabled: true erst NACH Kampagnen-Beitritt
     langs: [en]
     campaign: "Content Rewards – KreekCraft GTA 6 ($1/1K, fest)"
     cpm_usd: 1.0
-    enabled: true
+    enabled: false
+    blocked: true                   # Kampagne am 23.11. nicht mehr gelistet (Budget aufgebraucht)
   - name: darealboeshi
     platform: twitch
     url: https://twitch.tv/darealboeshi
