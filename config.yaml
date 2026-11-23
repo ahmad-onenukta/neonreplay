@@ -52,7 +52,8 @@ channels:                           # enabled: true erst NACH Kampagnen-Beitritt
     langs: [en]
     campaign: "Content Rewards – YourRAGE $5K GTA 6 Pool (500K Views)"
     cpm_usd: 1.0
-    enabled: true
+    enabled: false
+    blocked: true                   # Pool am 23.11. beendet -> keine Clips mehr
   - name: kreekcraft
     platform: twitch
     url: https://twitch.tv/kreekcraft
