@@ -119,6 +119,7 @@ def api_queue(token: str = "", limit: int = 3, claim: int = 0):
     now = time.time()
     chans = {ch["name"]: ch for ch in conf["channels"]}
     out = []
+    stats = {}
     for lang in conf["languages"]:
         blog = setting(f"BLOG_ID_{lang.upper()}")
         if not blog:
@@ -129,6 +130,8 @@ def api_queue(token: str = "", limit: int = 3, claim: int = 0):
                                  (lang, midnight)).fetchone()[0]
         last = c.execute("SELECT MAX(posted_at) FROM variants WHERE lang=? AND status IN ('posted','posting')", (lang,)).fetchone()[0] or 0
         free = max(0, pconf["max_posts_per_account_per_day"] - posted_today)
+        stats[lang] = {"posted_today": posted_today, "free_today": free, "limit": pconf["max_posts_per_account_per_day"],
+                       "ready": c.execute("SELECT COUNT(*) FROM variants WHERE lang=? AND status IN ('approved','ready')", (lang,)).fetchone()[0]}
         blocked = [n for n, ch in chans.items() if ch.get("blocked")] or ["-"]
         rows = c.execute(f"SELECT v.*, c.channel FROM variants v JOIN clips c ON c.id=v.clip_id WHERE v.lang=? AND v.status IN "
                          f"({','.join('?'*len(states))}) AND c.channel NOT IN ({','.join('?'*len(blocked))}) "
@@ -150,7 +153,7 @@ def api_queue(token: str = "", limit: int = 3, claim: int = 0):
                 c.execute("UPDATE variants SET status='posting', posted_at=? WHERE id=? AND status IN ('approved','ready')",
                           (now, it["id"]))
         c.commit()
-    return {"count": len(out), "items": out}
+    return {"count": len(out), "items": out, "stats": stats}
 
 
 @app.get("/api/mark")
@@ -159,7 +162,8 @@ def api_mark(token: str = "", id: int = 0, status: str = "posted", ref: str = ""
     if status not in ("posted", "error", "approved"):
         raise HTTPException(400)
     c = db.conn()
-    c.execute("UPDATE variants SET status=?, posted_at=CASE WHEN ?='posted' THEN ? ELSE posted_at END, "
+    # posted_at nur beim ERSTEN Posten setzen (Claim-Zeit bleibt), sonst zaehlt ein erneutes Markieren alter Posts ins Tageslimit
+    c.execute("UPDATE variants SET status=?, posted_at=CASE WHEN ?='posted' AND (posted_at IS NULL OR posted_at=0) THEN ? ELSE posted_at END, "
               "post_ref=COALESCE(NULLIF(?,''),post_ref), post_url=COALESCE(NULLIF(?,''),post_url), error=NULLIF(?,'') WHERE id=?",
               (status, status, time.time(), ref, url, error, id))
     c.commit()
